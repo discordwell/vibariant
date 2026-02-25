@@ -7,3 +7,32 @@ dist/
 *.log
 .cache/
 coverage/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.venv/
+venv/
+*.egg-info/
+.eggs/
+
+# Next.js
+.next/
+out/
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+
+# Alembic
+alembic/versions/__pycache__/
