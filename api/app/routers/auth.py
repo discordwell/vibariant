@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import create_access_token, create_magic_link_token, verify_token
+from app.models.project import Project
 from app.models.user import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -91,6 +92,10 @@ async def github_auth(body: GitHubAuthRequest, db: AsyncSession = Depends(get_db
         else:
             user = User(email=email, github_id=github_id, name=name)
             db.add(user)
+            await db.flush()
+            # Auto-create a default project for new users
+            project = Project(name="My Project", user_id=user.id)
+            db.add(project)
         await db.flush()
 
     access_token = create_access_token(user.id)
@@ -125,6 +130,10 @@ async def verify_magic_link(body: VerifyRequest, db: AsyncSession = Depends(get_
     if user is None:
         user = User(email=email)
         db.add(user)
+        await db.flush()
+        # Auto-create a default project for new users
+        project = Project(name="My Project", user_id=user.id)
+        db.add(project)
         await db.flush()
 
     access_token = create_access_token(user.id)

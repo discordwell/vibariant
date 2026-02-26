@@ -38,7 +38,7 @@ export default function LoginPage() {
   };
 
   // For development: simulate login
-  const handleDevLogin = () => {
+  const handleDevLogin = async () => {
     const mockToken =
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZXYtdXNlciIsImV4cCI6OTk5OTk5OTk5OX0.mock";
     const mockUser: User = {
@@ -48,6 +48,22 @@ export default function LoginPage() {
     };
     setToken(mockToken);
     setUser(mockUser);
+    // Attempt to load project info after login; the dashboard useProject hook
+    // will also handle the case where this fails or no project is cached yet.
+    try {
+      const projects = await api.getProjects();
+      if (projects.length > 0) {
+        const { setProject } = await import("@/lib/auth");
+        setProject({
+          id: projects[0].id,
+          name: projects[0].name,
+          project_token: projects[0].project_token,
+          api_key: projects[0].api_key,
+        });
+      }
+    } catch {
+      // If project fetch fails (e.g. mock token), the useProject hook will retry later
+    }
     router.push("/dashboard");
   };
 

@@ -1,85 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import type { Experiment } from "@/lib/api";
-
-const mockExperiments: Experiment[] = [
-  {
-    id: "exp-1",
-    name: "Hero CTA Color",
-    status: "running",
-    visitor_count: 4521,
-    variants: [
-      { id: "v1", name: "Original", weight: 0.5, visitor_count: 2260, conversion_rate: 0.032 },
-      { id: "v2", name: "Green Button", weight: 0.5, visitor_count: 2261, conversion_rate: 0.047 },
-    ],
-    created_at: "2026-02-20T10:00:00Z",
-    updated_at: "2026-02-26T10:00:00Z",
-  },
-  {
-    id: "exp-2",
-    name: "Pricing Layout",
-    status: "running",
-    visitor_count: 5102,
-    variants: [
-      { id: "v3", name: "Stacked", weight: 0.5, visitor_count: 2551, conversion_rate: 0.021 },
-      { id: "v4", name: "Side-by-side", weight: 0.5, visitor_count: 2551, conversion_rate: 0.028 },
-    ],
-    created_at: "2026-02-18T10:00:00Z",
-    updated_at: "2026-02-26T10:00:00Z",
-  },
-  {
-    id: "exp-3",
-    name: "Onboarding Flow",
-    status: "running",
-    visitor_count: 3224,
-    variants: [
-      { id: "v5", name: "Classic", weight: 0.33, visitor_count: 1074, conversion_rate: 0.058 },
-      { id: "v6", name: "Progressive", weight: 0.33, visitor_count: 1075, conversion_rate: 0.071 },
-      { id: "v7", name: "Minimal", weight: 0.34, visitor_count: 1075, conversion_rate: 0.063 },
-    ],
-    created_at: "2026-02-22T10:00:00Z",
-    updated_at: "2026-02-26T10:00:00Z",
-  },
-  {
-    id: "exp-4",
-    name: "Newsletter Popup Timing",
-    status: "completed",
-    visitor_count: 8930,
-    variants: [
-      { id: "v8", name: "5 seconds", weight: 0.33, visitor_count: 2977, conversion_rate: 0.012 },
-      { id: "v9", name: "30 seconds", weight: 0.33, visitor_count: 2977, conversion_rate: 0.034 },
-      { id: "v10", name: "Exit intent", weight: 0.34, visitor_count: 2976, conversion_rate: 0.041 },
-    ],
-    created_at: "2026-02-01T10:00:00Z",
-    updated_at: "2026-02-15T10:00:00Z",
-  },
-  {
-    id: "exp-5",
-    name: "Checkout Button Text",
-    status: "draft",
-    visitor_count: 0,
-    variants: [
-      { id: "v11", name: "Buy Now", weight: 0.5, visitor_count: 0 },
-      { id: "v12", name: "Add to Cart", weight: 0.5, visitor_count: 0 },
-    ],
-    created_at: "2026-02-25T10:00:00Z",
-    updated_at: "2026-02-25T10:00:00Z",
-  },
-  {
-    id: "exp-6",
-    name: "Footer Redesign",
-    status: "paused",
-    visitor_count: 1240,
-    variants: [
-      { id: "v13", name: "Minimal", weight: 0.5, visitor_count: 620, conversion_rate: 0.015 },
-      { id: "v14", name: "Expanded", weight: 0.5, visitor_count: 620, conversion_rate: 0.018 },
-    ],
-    created_at: "2026-02-10T10:00:00Z",
-    updated_at: "2026-02-20T10:00:00Z",
-  },
-];
+import { useRouter } from "next/navigation";
+import type { Experiment, CreateExperimentPayload } from "@/lib/api";
+import { api } from "@/lib/api";
+import { useProject } from "@/lib/hooks";
 
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
   draft: { bg: "bg-zinc-800", text: "text-zinc-400", dot: "bg-zinc-500" },
@@ -91,17 +17,71 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
 type FilterStatus = "all" | "running" | "completed" | "draft" | "paused";
 
 export default function ExperimentsPage() {
+  const router = useRouter();
+  const { projectId, loading: projectLoading, error: projectError } = useProject();
   const [experiments, setExperiments] = useState<Experiment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterStatus>("all");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+
+  // Create form state
+  const [newName, setNewName] = useState("");
+  const [newKey, setNewKey] = useState("");
+  const [newVariants, setNewVariants] = useState("control, variant");
+  const [newTraffic, setNewTraffic] = useState("100");
+
+  const fetchExperiments = useCallback(async () => {
+    if (!projectId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const exps = await api.getExperiments(projectId);
+      setExperiments(exps);
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      setError(apiErr.detail || "Failed to load experiments");
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setExperiments(mockExperiments);
-      setLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+    fetchExperiments();
+  }, [fetchExperiments]);
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!projectId || !newName.trim() || !newKey.trim()) return;
+
+    setCreating(true);
+    try {
+      const payload: CreateExperimentPayload = {
+        project_id: projectId,
+        key: newKey.trim(),
+        name: newName.trim(),
+        variant_keys: newVariants.split(",").map((v) => v.trim()).filter(Boolean),
+        traffic_percentage: Math.min(1, Math.max(0, parseFloat(newTraffic) / 100)),
+      };
+      const created = await api.createExperiment(payload);
+      setShowCreateModal(false);
+      setNewName("");
+      setNewKey("");
+      setNewVariants("control, variant");
+      setNewTraffic("100");
+      // Navigate to the new experiment
+      router.push(`/dashboard/experiments/${created.id}`);
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      setError(apiErr.detail || "Failed to create experiment");
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const isLoading = projectLoading || loading;
+  const displayError = projectError || error;
 
   const filtered =
     filter === "all"
@@ -126,10 +106,20 @@ export default function ExperimentsPage() {
             Manage and monitor your AB tests
           </p>
         </div>
-        <button className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors">
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+        >
           New Experiment
         </button>
       </div>
+
+      {/* Error state */}
+      {displayError && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6">
+          <p className="text-sm text-red-400">{displayError}</p>
+        </div>
+      )}
 
       {/* Filter tabs */}
       <div className="flex gap-1 mb-6 bg-zinc-850 border border-zinc-800 rounded-lg p-1 w-fit">
@@ -154,7 +144,7 @@ export default function ExperimentsPage() {
       </div>
 
       {/* Table */}
-      {loading ? (
+      {isLoading ? (
         <div className="bg-zinc-850 border border-zinc-800 rounded-xl overflow-hidden">
           <div className="p-4 space-y-4">
             {[1, 2, 3, 4].map((i) => (
@@ -177,40 +167,41 @@ export default function ExperimentsPage() {
                   Name
                 </th>
                 <th className="text-left text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3">
+                  Key
+                </th>
+                <th className="text-left text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3">
                   Status
                 </th>
                 <th className="text-left text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3">
                   Variants
                 </th>
                 <th className="text-right text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3">
-                  Visitors
-                </th>
-                <th className="text-right text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3">
-                  Best Conv. Rate
-                </th>
-                <th className="text-right text-xs font-medium text-zinc-500 uppercase tracking-wider px-5 py-3">
-                  Updated
+                  Traffic
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800">
               {filtered.map((exp) => {
                 const status = statusColors[exp.status] || statusColors.draft;
-                const bestRate = Math.max(
-                  ...(exp.variants ?? []).map((v) => v.conversion_rate || 0)
-                );
                 return (
                   <tr
                     key={exp.id}
-                    className="hover:bg-zinc-800/50 transition-colors"
+                    className="hover:bg-zinc-800/50 transition-colors cursor-pointer"
+                    onClick={() => router.push(`/dashboard/experiments/${exp.id}`)}
                   >
                     <td className="px-5 py-3.5">
                       <Link
                         href={`/dashboard/experiments/${exp.id}`}
                         className="text-sm font-medium text-zinc-100 hover:text-violet-300 transition-colors"
+                        onClick={(e) => e.stopPropagation()}
                       >
                         {exp.name}
                       </Link>
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <code className="text-xs text-zinc-500 font-mono">
+                        {exp.key || "-"}
+                      </code>
                     </td>
                     <td className="px-5 py-3.5">
                       <span
@@ -221,18 +212,10 @@ export default function ExperimentsPage() {
                       </span>
                     </td>
                     <td className="px-5 py-3.5 text-sm text-zinc-400">
-                      {exp.variants?.length ?? 0}
+                      {(exp.variant_keys ?? []).join(", ")}
                     </td>
                     <td className="px-5 py-3.5 text-sm text-zinc-300 text-right">
-                      {(exp.visitor_count ?? 0).toLocaleString()}
-                    </td>
-                    <td className="px-5 py-3.5 text-sm text-zinc-300 text-right">
-                      {bestRate > 0
-                        ? `${(bestRate * 100).toFixed(1)}%`
-                        : "-"}
-                    </td>
-                    <td className="px-5 py-3.5 text-sm text-zinc-500 text-right">
-                      {exp.updated_at ? new Date(exp.updated_at).toLocaleDateString() : "-"}
+                      {((exp.traffic_percentage ?? 1) * 100).toFixed(0)}%
                     </td>
                   </tr>
                 );
@@ -243,10 +226,102 @@ export default function ExperimentsPage() {
           {filtered.length === 0 && (
             <div className="text-center py-12">
               <p className="text-zinc-500 text-sm">
-                No experiments match this filter.
+                {experiments.length === 0
+                  ? "No experiments yet. Create your first one!"
+                  : "No experiments match this filter."}
               </p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Create Experiment Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            onClick={() => setShowCreateModal(false)}
+          />
+          <div className="relative bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-full max-w-md shadow-2xl">
+            <h2 className="text-lg font-semibold text-zinc-100 mb-4">
+              Create Experiment
+            </h2>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                  Experiment Name
+                </label>
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="e.g., Hero CTA Color"
+                  required
+                  className="w-full bg-zinc-850 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500/40 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                  Experiment Key
+                </label>
+                <input
+                  type="text"
+                  value={newKey}
+                  onChange={(e) => setNewKey(e.target.value)}
+                  placeholder="e.g., hero-cta-color"
+                  required
+                  className="w-full bg-zinc-850 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 font-mono placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500/40 transition-all"
+                />
+                <p className="text-xs text-zinc-600 mt-1">
+                  Used in SDK code to reference this experiment
+                </p>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                  Variant Keys (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={newVariants}
+                  onChange={(e) => setNewVariants(e.target.value)}
+                  placeholder="control, variant"
+                  className="w-full bg-zinc-850 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 font-mono placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500/40 transition-all"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                  Traffic Percentage
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={newTraffic}
+                    onChange={(e) => setNewTraffic(e.target.value)}
+                    min="1"
+                    max="100"
+                    className="w-24 bg-zinc-850 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500/40 transition-all"
+                  />
+                  <span className="text-sm text-zinc-500">%</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating || !newName.trim() || !newKey.trim()}
+                  className="bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                >
+                  {creating ? "Creating..." : "Create"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

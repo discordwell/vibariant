@@ -1,80 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { Goal } from "@/lib/api";
-
-const mockGoals: Goal[] = [
-  {
-    id: "g1",
-    name: "CTA Click",
-    type: "click",
-    selector: "button.cta-primary",
-    auto_detected: true,
-    confirmed: true,
-    event_count: 1243,
-    created_at: "2026-02-15T10:00:00Z",
-  },
-  {
-    id: "g2",
-    name: "Plan Selection",
-    type: "click",
-    selector: ".pricing-card .select-plan",
-    auto_detected: true,
-    confirmed: true,
-    event_count: 487,
-    created_at: "2026-02-16T10:00:00Z",
-  },
-  {
-    id: "g3",
-    name: "Onboarding Complete",
-    type: "pageview",
-    url_pattern: "/onboarding/complete",
-    auto_detected: true,
-    confirmed: true,
-    event_count: 312,
-    created_at: "2026-02-17T10:00:00Z",
-  },
-  {
-    id: "g4",
-    name: "Newsletter Signup",
-    type: "form_submit",
-    selector: "form#newsletter",
-    auto_detected: true,
-    confirmed: false,
-    event_count: 89,
-    created_at: "2026-02-20T10:00:00Z",
-  },
-  {
-    id: "g5",
-    name: "Checkout Page View",
-    type: "pageview",
-    url_pattern: "/checkout*",
-    auto_detected: true,
-    confirmed: false,
-    event_count: 156,
-    created_at: "2026-02-21T10:00:00Z",
-  },
-  {
-    id: "g6",
-    name: "Add to Cart",
-    type: "click",
-    selector: "button.add-to-cart",
-    auto_detected: true,
-    confirmed: false,
-    event_count: 734,
-    created_at: "2026-02-22T10:00:00Z",
-  },
-  {
-    id: "g7",
-    name: "Contact Form Submit",
-    type: "form_submit",
-    selector: "form#contact",
-    auto_detected: false,
-    confirmed: true,
-    event_count: 42,
-    created_at: "2026-02-23T10:00:00Z",
-  },
-];
+import { api } from "@/lib/api";
+import { useProject } from "@/lib/hooks";
 
 const typeConfig: Record<string, { color: string; label: string; icon: React.ReactNode }> = {
   click: {
@@ -117,42 +46,92 @@ const typeConfig: Record<string, { color: string; label: string; icon: React.Rea
 };
 
 export default function GoalsPage() {
+  const { projectId, loading: projectLoading, error: projectError } = useProject();
   const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
+  const [editLabel, setEditLabel] = useState("");
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const fetchGoals = useCallback(async () => {
+    if (!projectId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await api.getGoals(projectId);
+      setGoals(data);
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      setError(apiErr.detail || "Failed to load goals");
+    } finally {
+      setLoading(false);
+    }
+  }, [projectId]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setGoals(mockGoals);
-      setLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, []);
+    fetchGoals();
+  }, [fetchGoals]);
 
-  const handleConfirm = (id: string) => {
-    setGoals((prev) =>
-      prev.map((g) => (g.id === id ? { ...g, confirmed: true } : g))
-    );
+  const handleConfirm = async (id: string) => {
+    setActionLoading(id);
+    try {
+      const updated = await api.confirmGoal(id);
+      setGoals((prev) =>
+        prev.map((g) => (g.id === id ? { ...g, ...updated } : g))
+      );
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      setError(apiErr.detail || "Failed to confirm goal");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const handleDismiss = (id: string) => {
-    setGoals((prev) => prev.filter((g) => g.id !== id));
+  const handleDismiss = async (id: string) => {
+    setActionLoading(id);
+    try {
+      // Dismiss = set confirmed to false (we don't delete, just mark unconfirmed)
+      // But since it's already unconfirmed, we filter it from view.
+      // If the API supported deletion, we'd call delete here. For now, just
+      // confirm with false to acknowledge we've seen it.
+      await api.updateGoal(id, { confirmed: false });
+      setGoals((prev) => prev.filter((g) => g.id !== id));
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      setError(apiErr.detail || "Failed to dismiss goal");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const handleStartEdit = (goal: Goal) => {
     setEditingId(goal.id);
-    setEditName(goal.name ?? goal.label ?? "");
+    setEditLabel(goal.label ?? goal.name ?? "");
   };
 
-  const handleSaveEdit = (id: string) => {
-    if (editName.trim()) {
-      setGoals((prev) =>
-        prev.map((g) => (g.id === id ? { ...g, name: editName.trim() } : g))
-      );
+  const handleSaveEdit = async (id: string) => {
+    if (!editLabel.trim()) {
+      setEditingId(null);
+      return;
     }
-    setEditingId(null);
+    setActionLoading(id);
+    try {
+      const updated = await api.updateGoal(id, { label: editLabel.trim() });
+      setGoals((prev) =>
+        prev.map((g) => (g.id === id ? { ...g, ...updated, label: updated.label } : g))
+      );
+    } catch (err: unknown) {
+      const apiErr = err as { detail?: string };
+      setError(apiErr.detail || "Failed to update goal");
+    } finally {
+      setEditingId(null);
+      setActionLoading(null);
+    }
   };
+
+  const isLoading = projectLoading || loading;
+  const displayError = projectError || error;
 
   const confirmed = goals.filter((g) => g.confirmed);
   const unconfirmed = goals.filter((g) => !g.confirmed);
@@ -170,7 +149,14 @@ export default function GoalsPage() {
         </div>
       </div>
 
-      {loading ? (
+      {/* Error state */}
+      {displayError && (
+        <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-6">
+          <p className="text-sm text-red-400">{displayError}</p>
+        </div>
+      )}
+
+      {isLoading ? (
         <div className="space-y-4">
           {[1, 2, 3, 4].map((i) => (
             <div key={i} className="skeleton h-20 w-full rounded-xl" />
@@ -200,6 +186,7 @@ export default function GoalsPage() {
               <div className="space-y-3">
                 {unconfirmed.map((goal) => {
                   const config = typeConfig[goal.type] || typeConfig.custom;
+                  const isActioning = actionLoading === goal.id;
                   return (
                     <div
                       key={goal.id}
@@ -213,7 +200,7 @@ export default function GoalsPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <h3 className="text-sm font-medium text-zinc-200">
-                            {goal.name}
+                            {goal.label || goal.name || "Untitled Goal"}
                           </h3>
                           <span className="text-xs bg-amber-500/10 text-amber-400 px-1.5 py-0.5 rounded">
                             auto-detected
@@ -223,26 +210,36 @@ export default function GoalsPage() {
                           <span className={`text-xs ${config.color}`}>
                             {config.label}
                           </span>
-                          <span className="text-xs text-zinc-600">|</span>
-                          <code className="text-xs text-zinc-500 font-mono">
-                            {goal.selector || goal.url_pattern}
-                          </code>
-                          <span className="text-xs text-zinc-600">|</span>
-                          <span className="text-xs text-zinc-500">
-                            {(goal.event_count ?? 0).toLocaleString()} events
-                          </span>
+                          {goal.trigger && (
+                            <>
+                              <span className="text-xs text-zinc-600">|</span>
+                              <code className="text-xs text-zinc-500 font-mono truncate max-w-[200px]">
+                                {JSON.stringify(goal.trigger)}
+                              </code>
+                            </>
+                          )}
+                          {goal.confidence != null && (
+                            <>
+                              <span className="text-xs text-zinc-600">|</span>
+                              <span className="text-xs text-zinc-500">
+                                {(goal.confidence * 100).toFixed(0)}% confidence
+                              </span>
+                            </>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
                         <button
                           onClick={() => handleConfirm(goal.id)}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+                          disabled={isActioning}
+                          className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
                         >
-                          Confirm
+                          {isActioning ? "..." : "Confirm"}
                         </button>
                         <button
                           onClick={() => handleDismiss(goal.id)}
-                          className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
+                          disabled={isActioning}
+                          className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-400 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
                         >
                           Dismiss
                         </button>
@@ -263,6 +260,7 @@ export default function GoalsPage() {
               {confirmed.map((goal) => {
                 const config = typeConfig[goal.type] || typeConfig.custom;
                 const isEditing = editingId === goal.id;
+                const isActioning = actionLoading === goal.id;
                 return (
                   <div
                     key={goal.id}
@@ -278,8 +276,8 @@ export default function GoalsPage() {
                         <div className="flex items-center gap-2">
                           <input
                             type="text"
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
+                            value={editLabel}
+                            onChange={(e) => setEditLabel(e.target.value)}
                             onKeyDown={(e) => {
                               if (e.key === "Enter") handleSaveEdit(goal.id);
                               if (e.key === "Escape") setEditingId(null);
@@ -289,9 +287,10 @@ export default function GoalsPage() {
                           />
                           <button
                             onClick={() => handleSaveEdit(goal.id)}
-                            className="text-xs text-violet-400 hover:text-violet-300"
+                            disabled={isActioning}
+                            className="text-xs text-violet-400 hover:text-violet-300 disabled:opacity-50"
                           >
-                            Save
+                            {isActioning ? "..." : "Save"}
                           </button>
                           <button
                             onClick={() => setEditingId(null)}
@@ -303,27 +302,30 @@ export default function GoalsPage() {
                       ) : (
                         <div className="flex items-center gap-2">
                           <h3 className="text-sm font-medium text-zinc-200">
-                            {goal.name}
+                            {goal.label || goal.name || "Untitled Goal"}
                           </h3>
-                          {goal.auto_detected && (
-                            <span className="text-xs bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded">
-                              auto-detected
-                            </span>
-                          )}
                         </div>
                       )}
                       <div className="flex items-center gap-3 mt-1">
                         <span className={`text-xs ${config.color}`}>
                           {config.label}
                         </span>
-                        <span className="text-xs text-zinc-600">|</span>
-                        <code className="text-xs text-zinc-500 font-mono">
-                          {goal.selector || goal.url_pattern}
-                        </code>
-                        <span className="text-xs text-zinc-600">|</span>
-                        <span className="text-xs text-zinc-500">
-                          {(goal.event_count ?? 0).toLocaleString()} events
-                        </span>
+                        {goal.trigger && (
+                          <>
+                            <span className="text-xs text-zinc-600">|</span>
+                            <code className="text-xs text-zinc-500 font-mono truncate max-w-[200px]">
+                              {JSON.stringify(goal.trigger)}
+                            </code>
+                          </>
+                        )}
+                        {goal.confidence != null && (
+                          <>
+                            <span className="text-xs text-zinc-600">|</span>
+                            <span className="text-xs text-zinc-500">
+                              {(goal.confidence * 100).toFixed(0)}% confidence
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                     {!isEditing && (
@@ -360,6 +362,33 @@ export default function GoalsPage() {
               )}
             </div>
           </div>
+
+          {/* Empty state for no goals at all */}
+          {goals.length === 0 && (
+            <div className="text-center py-16 bg-zinc-850 border border-zinc-800 rounded-xl">
+              <div className="w-12 h-12 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg
+                  className="w-6 h-6 text-zinc-500"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-zinc-300 mb-1">
+                No goals detected yet
+              </h3>
+              <p className="text-zinc-500 text-sm max-w-md mx-auto">
+                Goals will appear here once the SDK detects conversion events on your site. Make sure the SDK is installed and tracking.
+              </p>
+            </div>
+          )}
         </>
       )}
     </div>

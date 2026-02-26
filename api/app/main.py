@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.routers import auth, events, experiments, goals, health, init, stats
+from app.routers import auth, events, experiments, goals, health, init, projects, stats
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -25,4 +25,5 @@ app.include_router(init.router, prefix=settings.API_V1_PREFIX)
 app.include_router(events.router, prefix=settings.API_V1_PREFIX)
 app.include_router(experiments.router, prefix=settings.API_V1_PREFIX)
 app.include_router(goals.router, prefix=settings.API_V1_PREFIX)
+app.include_router(projects.router, prefix=settings.API_V1_PREFIX)
 app.include_router(stats.router, prefix=settings.API_V1_PREFIX)

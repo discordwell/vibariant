@@ -1,7 +1,7 @@
 import { getToken, logout } from "./auth";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
 
 const API_PREFIX = "/api/v1";
 
@@ -102,6 +102,14 @@ class ApiClient {
   }
 
   // ---------------------------------------------------------------------------
+  // Project endpoints (JWT auth)
+  // ---------------------------------------------------------------------------
+
+  async getProjects() {
+    return this.request<Project[]>(`${API_PREFIX}/projects`);
+  }
+
+  // ---------------------------------------------------------------------------
   // Experiment endpoints (JWT auth)
   // ---------------------------------------------------------------------------
 
@@ -177,12 +185,10 @@ class ApiClient {
   // TODO: Endpoints not yet implemented on the backend
   // ---------------------------------------------------------------------------
 
-  // TODO: getProject — GET /api/v1/projects/{id} (projects CRUD not yet in API)
   // TODO: updateProject — PATCH /api/v1/projects/{id}
   // TODO: getApiKeys — GET /api/v1/api-keys
   // TODO: createApiKey — POST /api/v1/api-keys
   // TODO: revokeApiKey — DELETE /api/v1/api-keys/{id}
-  // TODO: getDashboardOverview — GET /api/v1/dashboard/overview
 }
 
 // ---------------------------------------------------------------------------
@@ -200,6 +206,14 @@ export interface AuthResponse {
 /** Matches MessageResponse in auth.py */
 export interface MessageResponse {
   message: string;
+}
+
+/** Matches ProjectOut in projects.py */
+export interface Project {
+  id: string;
+  name: string;
+  project_token: string;
+  api_key: string;
 }
 
 /**
@@ -322,8 +336,15 @@ export interface ExperimentResults {
   total_visitors: number;
   variants: VariantResult[];
   probability_b_beats_a: number | null;
-  expected_loss: number | null;
+  probability_best: number[] | null;
+  expected_loss: Record<string, number> | null;
   recommendation: string | null;
+  suggested_allocation: Record<string, number> | null;
+  engagement_comparison: {
+    means: Record<string, number> | null;
+    differences: Record<string, number> | null;
+    summary: string | null;
+  } | null;
 }
 
 // ---------------------------------------------------------------------------

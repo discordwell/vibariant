@@ -16,10 +16,8 @@ interface ExperimentCardProps {
 
 export default function ExperimentCard({ experiment }: ExperimentCardProps) {
   const status = statusColors[experiment.status] || statusColors.draft;
-  const variants = experiment.variants ?? [];
-  const bestVariant = variants.reduce((best, v) =>
-    (v.conversion_rate || 0) > (best.conversion_rate || 0) ? v : best
-  , variants[0]);
+  const variantKeys = experiment.variant_keys ?? [];
+  const trafficPct = experiment.traffic_percentage ?? 1;
 
   return (
     <Link
@@ -32,7 +30,10 @@ export default function ExperimentCard({ experiment }: ExperimentCardProps) {
             {experiment.name}
           </h3>
           <p className="text-xs text-zinc-500 mt-0.5">
-            {variants.length} variants
+            {variantKeys.length} variants
+            {experiment.key && (
+              <span className="ml-2 font-mono text-zinc-600">{experiment.key}</span>
+            )}
           </p>
         </div>
         <span
@@ -46,59 +47,51 @@ export default function ExperimentCard({ experiment }: ExperimentCardProps) {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3 mt-4">
         <div>
-          <p className="text-xs text-zinc-500">Visitors</p>
+          <p className="text-xs text-zinc-500">Variants</p>
           <p className="text-sm font-semibold text-zinc-200 mt-0.5">
-            {(experiment.visitor_count ?? 0).toLocaleString()}
+            {variantKeys.length}
           </p>
         </div>
         <div>
-          <p className="text-xs text-zinc-500">Best Variant</p>
-          <p className="text-sm font-semibold text-zinc-200 mt-0.5 truncate">
-            {bestVariant?.name || "-"}
+          <p className="text-xs text-zinc-500">Traffic</p>
+          <p className="text-sm font-semibold text-zinc-200 mt-0.5">
+            {(trafficPct * 100).toFixed(0)}%
           </p>
         </div>
         <div>
-          <p className="text-xs text-zinc-500">Conv. Rate</p>
-          <p className="text-sm font-semibold text-zinc-200 mt-0.5">
-            {bestVariant?.conversion_rate != null
-              ? `${(bestVariant.conversion_rate * 100).toFixed(1)}%`
-              : "-"}
+          <p className="text-xs text-zinc-500">Key</p>
+          <p className="text-sm font-semibold text-zinc-200 mt-0.5 truncate font-mono">
+            {experiment.key || "-"}
           </p>
         </div>
       </div>
 
-      {/* Variant bars */}
-      <div className="mt-4 space-y-1.5">
-        {variants.map((variant) => {
-          const rate = variant.conversion_rate || 0;
-          const maxRate = Math.max(
-            ...variants.map((v) => v.conversion_rate || 0),
-            0.01
-          );
-          const widthPct = (rate / maxRate) * 100;
-
-          return (
-            <div key={variant.id} className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500 w-16 truncate">
-                {variant.name}
-              </span>
-              <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                <div
-                  className={`h-full rounded-full transition-all duration-500 ${
-                    variant.id === bestVariant?.id
-                      ? "bg-violet-500"
-                      : "bg-zinc-600"
-                  }`}
-                  style={{ width: `${widthPct}%` }}
-                />
+      {/* Variant list */}
+      {variantKeys.length > 0 && (
+        <div className="mt-4 space-y-1.5">
+          {variantKeys.map((vk, idx) => {
+            const widthPct = (1 / variantKeys.length) * 100;
+            return (
+              <div key={vk} className="flex items-center gap-2">
+                <span className="text-xs text-zinc-500 w-16 truncate">
+                  {vk}
+                </span>
+                <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${
+                      idx === 0 ? "bg-violet-500" : "bg-zinc-600"
+                    }`}
+                    style={{ width: `${widthPct}%` }}
+                  />
+                </div>
+                <span className="text-xs text-zinc-400 w-12 text-right">
+                  {(100 / variantKeys.length).toFixed(0)}%
+                </span>
               </div>
-              <span className="text-xs text-zinc-400 w-12 text-right">
-                {(rate * 100).toFixed(1)}%
-              </span>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </Link>
   );
 }
