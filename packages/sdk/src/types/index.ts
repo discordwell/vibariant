@@ -68,6 +68,7 @@ export type EventType =
   | 'navigation'
   | 'engagement'
   | 'goal'
+  | 'goal_completed'
   | 'custom';
 
 export interface ClickPayload {
@@ -268,4 +269,14 @@ export interface EventBatchRequest {
  */
 export interface EventBatchRequestWithToken extends EventBatchRequest {
   projectToken: string;
+}
+
+/**
+ * Request body for POST /api/v1/goals — reports a single detected goal.
+ */
+export interface GoalReportRequest {
+  type: GoalType;
+  label: string;
+  trigger: GoalTrigger;
+  confidence: number;
 }

@@ -4,6 +4,7 @@ import { classifyElement, classifyPage } from './classifier.js';
 import { rankGoals, filterByConfidence } from './ranker.js';
 
 type GoalCallback = (goal: DetectedGoal) => void;
+type GoalBatchReporter = (goals: DetectedGoal[]) => void;
 
 /**
  * GoalDetector: orchestrates DOM scanning, classification, ranking,
@@ -16,11 +17,18 @@ export class GoalDetector {
   private goals: Map<string, DetectedGoal> = new Map();
   private observer: MutationObserver | null = null;
   private onGoalDetected: GoalCallback;
+  private onReportGoals: GoalBatchReporter | null;
   private scanScheduled = false;
+  private reportTimer: ReturnType<typeof setTimeout> | null = null;
+  private pendingReport: DetectedGoal[] = [];
   private started = false;
 
-  constructor(onGoalDetected: GoalCallback) {
+  /** Debounce delay (ms) before reporting detected goals to the API */
+  private static readonly REPORT_DEBOUNCE_MS = 2000;
+
+  constructor(onGoalDetected: GoalCallback, onReportGoals?: GoalBatchReporter) {
     this.onGoalDetected = onGoalDetected;
+    this.onReportGoals = onReportGoals ?? null;
   }
 
   /**
@@ -77,6 +85,12 @@ export class GoalDetector {
       this.observer.disconnect();
       this.observer = null;
     }
+    // Flush any pending goal reports before teardown
+    this.flushPendingReport();
+    if (this.reportTimer) {
+      clearTimeout(this.reportTimer);
+      this.reportTimer = null;
+    }
     this.started = false;
   }
 
@@ -109,6 +123,7 @@ export class GoalDetector {
    *   4. Classify page signals
    *   5. Rank and deduplicate
    *   6. Report new goals via callback
+   *   7. Schedule debounced batch report to API
    */
   private scan(): void {
     const allCandidates: DetectedGoal[] = [];
@@ -132,11 +147,45 @@ export class GoalDetector {
     const ranked = rankGoals(filtered);
 
     // Report new goals
+    const newGoals: DetectedGoal[] = [];
     for (const goal of ranked) {
       if (!this.goals.has(goal.id)) {
         this.goals.set(goal.id, goal);
         this.onGoalDetected(goal);
+        newGoals.push(goal);
       }
     }
+
+    // Schedule debounced batch report to API
+    if (newGoals.length > 0) {
+      this.pendingReport.push(...newGoals);
+      this.scheduleReport();
+    }
+  }
+
+  /**
+   * Schedule a debounced batch report to the API.
+   * Resets the timer on each call so rapid scans are coalesced.
+   */
+  private scheduleReport(): void {
+    if (!this.onReportGoals) return;
+
+    if (this.reportTimer) {
+      clearTimeout(this.reportTimer);
+    }
+
+    this.reportTimer = setTimeout(() => {
+      this.flushPendingReport();
+    }, GoalDetector.REPORT_DEBOUNCE_MS);
+  }
+
+  /**
+   * Immediately report all pending goals to the API.
+   */
+  private flushPendingReport(): void {
+    if (!this.onReportGoals || this.pendingReport.length === 0) return;
+
+    const goals = this.pendingReport.splice(0);
+    this.onReportGoals(goals);
   }
 }

@@ -34,7 +34,9 @@
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "peerDependencies": {
     "react": ">=18"
@@ -47,7 +49,8 @@
   "devDependencies": {
     "tsup": "^8.0.0",
     "typescript": "^5.4.0",
-    "@types/react": "^18.2.0"
+    "@types/react": "^18.2.0",
+    "vitest": "^3.0.0"
   },
   "license": "MIT",
   "repository": {

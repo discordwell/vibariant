@@ -8,6 +8,7 @@ import type {
   InitRequest,
   InitResponse,
   DetectedGoal,
+  GoalReportRequest,
 } from '../types/index.js';
 import { applyDefaults, type ResolvedConfig } from './config.js';
 import { resolveVisitorId, resolveSessionId } from './identity.js';
@@ -61,25 +62,35 @@ export class VibeVariant {
     // Retry pending events from previous failed flushes
     await this.batcher.retryPending();
 
-    // Start auto-tracking
-    if (this.config.autoTrack) {
-      this.trackingTeardown = initAllTrackers((type, payload) => {
-        this.track(type, payload);
-      });
+    // Start goal detection first so trackers can reference detected goals
+    if (this.config.autoGoals) {
+      this.goalDetector = new GoalDetector(
+        // Per-goal callback: emit a 'goal' event into the event stream
+        (goal) => {
+          this.track('goal', {
+            goalId: goal.id,
+            goalType: goal.goalType,
+            label: goal.label,
+            confidence: goal.confidence,
+            trigger: goal.trigger,
+          });
+        },
+        // Batch reporter: debounced API reporting of detected goals
+        (goals) => {
+          void this.reportGoals(goals);
+        },
+      );
+      this.goalDetector.start();
     }
 
-    // Start goal detection
-    if (this.config.autoGoals) {
-      this.goalDetector = new GoalDetector((goal) => {
-        this.track('goal', {
-          goalId: goal.id,
-          goalType: goal.goalType,
-          label: goal.label,
-          confidence: goal.confidence,
-          trigger: goal.trigger,
-        });
-      });
-      this.goalDetector.start();
+    // Start auto-tracking (after goal detection so trackers can link to goals)
+    if (this.config.autoTrack) {
+      const goalLookup = this.goalDetector
+        ? () => this.goalDetector!.getGoals()
+        : undefined;
+      this.trackingTeardown = initAllTrackers((type, payload) => {
+        this.track(type, payload);
+      }, goalLookup);
     }
 
     this.initialized = true;
@@ -154,6 +165,44 @@ export class VibeVariant {
    */
   getDetectedGoals(): DetectedGoal[] {
     return this.goalDetector?.getGoals() ?? [];
+  }
+
+  /**
+   * Report detected goals to the API.
+   * Sends each goal individually to POST /api/v1/goals.
+   * Called by the GoalDetector after its debounced scan stabilizes.
+   */
+  async reportGoals(goals: DetectedGoal[]): Promise<void> {
+    const url = `${this.config.apiHost}/api/v1/goals`;
+    const headers = {
+      'Content-Type': 'application/json',
+      'X-Project-Token': this.config.projectToken,
+    };
+
+    for (const goal of goals) {
+      const body: GoalReportRequest = {
+        type: goal.goalType,
+        label: goal.label,
+        trigger: goal.trigger,
+        confidence: goal.confidence,
+      };
+
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+          this.log(`Goal report failed for ${goal.id}: ${response.status}`);
+        } else {
+          this.log(`Reported goal: ${goal.id} (${goal.goalType})`);
+        }
+      } catch {
+        this.log(`Goal report failed for ${goal.id}: network error`);
+      }
+    }
   }
 
   /**
