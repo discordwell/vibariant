@@ -237,6 +237,11 @@ export interface Experiment {
   key?: string;
   variant_keys?: string[];
   traffic_percentage?: number;
+  // v2 stats config
+  loss_threshold?: number;
+  rope_width?: number;
+  expected_conversion_rate?: number | null;
+  prior_confidence?: number | null;
   // --- Legacy fields used by dashboard mock data (not in API response) ---
   /** @deprecated Not in API — dashboard mock data only */
   variants?: { id: string; name: string; weight: number; visitor_count: number; conversion_rate?: number }[];
@@ -255,6 +260,11 @@ export interface CreateExperimentPayload {
   name: string;
   variant_keys?: string[];
   traffic_percentage?: number;
+  // v2 stats config
+  loss_threshold?: number;
+  rope_width?: number;
+  expected_conversion_rate?: number | null;
+  prior_confidence?: number | null;
 }
 
 /** Payload for PATCH /api/v1/experiments/{id} — matches ExperimentUpdate in experiments.py */
@@ -263,6 +273,11 @@ export interface UpdateExperimentPayload {
   status?: "draft" | "running" | "paused" | "completed";
   variant_keys?: string[];
   traffic_percentage?: number;
+  // v2 stats config
+  loss_threshold?: number;
+  rope_width?: number;
+  expected_conversion_rate?: number | null;
+  prior_confidence?: number | null;
 }
 
 /**
@@ -333,6 +348,35 @@ export interface VariantResult {
   probability_of_being_best?: number;
 }
 
+/** v2: ROPE analysis result */
+export interface RopeResult {
+  decision: string | null; // "ship_a"|"ship_b"|"equivalent"|"undecided"
+  hdi: [number, number] | null;
+  rope: [number, number] | null;
+  hdi_in_rope: boolean | null;
+  hdi_outside_rope: boolean | null;
+  leader?: string | null;
+  pairwise?: Record<string, unknown>[] | null;
+  variant_a?: string | null;
+  variant_b?: string | null;
+}
+
+/** v2: Structured decision info */
+export interface DecisionInfo {
+  decision_status: "collecting_data" | "keep_testing" | "ready_to_ship" | "practically_equivalent";
+  winning_variant: string | null;
+  confidence_level: "low" | "medium" | "high" | null;
+}
+
+/** v2: Decision progress toward statistical significance */
+export interface DecisionProgress {
+  confidence_pct: number; // 0-100
+  epsilon_threshold: number;
+  leading_variant_loss: number;
+  estimated_days: number | null;
+  daily_visitor_rate: number | null;
+}
+
 /** Matches ExperimentResults in stats.py */
 export interface ExperimentResults {
   experiment_id: string;
@@ -349,6 +393,13 @@ export interface ExperimentResults {
     differences: Record<string, number> | null;
     summary: string | null;
   } | null;
+  // v2 fields
+  decision: DecisionInfo | null;
+  rope_analysis: RopeResult | null;
+  decision_progress: DecisionProgress | null;
+  prior_used: string | null;
+  raw_effect_size: number | null;
+  shrunk_effect_size: number | null;
 }
 
 // ---------------------------------------------------------------------------

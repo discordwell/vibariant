@@ -1,6 +1,7 @@
 from app.models.base import Base, TimestampMixin
 from app.models.event import Event
 from app.models.experiment import Experiment, ExperimentStatus
+from app.models.experiment_result import ExperimentResult
 from app.models.goal import Goal
 from app.models.project import Project
 from app.models.user import User
@@ -11,6 +12,7 @@ __all__ = [
     "TimestampMixin",
     "Event",
     "Experiment",
+    "ExperimentResult",
     "ExperimentStatus",
     "Goal",
     "Project",

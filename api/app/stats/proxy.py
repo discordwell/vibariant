@@ -4,11 +4,18 @@ When an experiment has too few conversions to draw meaningful Bayesian
 conclusions (e.g. 1 vs 0), engagement signals serve as leading indicators.
 The composite score combines scroll depth, time on page, click interactions,
 and form engagement into a single 0-1 metric.
+
+v2 additions:
+- calibrate_weights(): OLS calibration against binary conversion outcomes
+- winsorize_scores(): cap outliers at a given percentile
+- cuped_adjust(): CUPED variance reduction for returning visitors
 """
 
 from __future__ import annotations
 
 from typing import Any
+
+import numpy as np
 
 
 class ProxyMetrics:
@@ -40,7 +47,11 @@ class ProxyMetrics:
     # ------------------------------------------------------------------
 
     @classmethod
-    def compute_engagement_score(cls, events: list[dict[str, Any]]) -> float:
+    def compute_engagement_score(
+        cls,
+        events: list[dict[str, Any]],
+        weights: dict[str, float] | None = None,
+    ) -> float:
         """Compute a composite engagement score from a list of event dicts.
 
         Each event dict is expected to have an ``event_type`` and a
@@ -111,12 +122,13 @@ class ProxyMetrics:
         click_score = min(click_count / cls.MAX_CLICK_COUNT, 1.0)
         form_score = 1.0 if has_form_engagement else 0.0
 
-        # Weighted composite
+        # Weighted composite (use calibrated weights if provided)
+        w = weights if weights is not None else cls.WEIGHTS
         score = (
-            cls.WEIGHTS["scroll_depth"] * scroll_score
-            + cls.WEIGHTS["time_on_page"] * time_score
-            + cls.WEIGHTS["click_count"] * click_score
-            + cls.WEIGHTS["form_engagement"] * form_score
+            w.get("scroll_depth", cls.WEIGHTS["scroll_depth"]) * scroll_score
+            + w.get("time_on_page", cls.WEIGHTS["time_on_page"]) * time_score
+            + w.get("click_count", cls.WEIGHTS["click_count"]) * click_score
+            + w.get("form_engagement", cls.WEIGHTS["form_engagement"]) * form_score
         )
         return round(score, 4)
 
@@ -208,3 +220,127 @@ class ProxyMetrics:
         if not conversions_per_variant:
             return False
         return all(c >= min_conversions for c in conversions_per_variant.values())
+
+    # ------------------------------------------------------------------
+    # Weight calibration (v2)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def calibrate_weights(
+        historical_results: list[dict[str, Any]],
+    ) -> dict[str, float] | None:
+        """Calibrate engagement signal weights against binary conversion.
+
+        Uses OLS regression of the 4 engagement signals against observed
+        binary conversion outcomes from past experiment data.
+
+        Parameters
+        ----------
+        historical_results : list[dict]
+            Each dict has: scroll_depth, time_on_page, click_count,
+            form_engagement (floats 0-1), and converted (bool/int).
+
+        Returns
+        -------
+        dict | None
+            Normalized weights summing to 1.0, or None if insufficient data.
+        """
+        if len(historical_results) < 10:
+            return None
+
+        try:
+            X = np.array([
+                [
+                    r.get("scroll_depth", 0),
+                    r.get("time_on_page", 0),
+                    r.get("click_count", 0),
+                    r.get("form_engagement", 0),
+                ]
+                for r in historical_results
+            ])
+            y = np.array([float(r.get("converted", 0)) for r in historical_results])
+
+            # OLS: beta = (X^T X)^{-1} X^T y
+            XtX = X.T @ X
+            # Regularize for numerical stability
+            XtX += np.eye(4) * 1e-6
+            Xty = X.T @ y
+            beta = np.linalg.solve(XtX, Xty)
+
+            # Take absolute values (negative weights don't make sense for engagement)
+            beta = np.abs(beta)
+            total = np.sum(beta)
+            if total <= 0:
+                return None
+
+            beta = beta / total
+            keys = ["scroll_depth", "time_on_page", "click_count", "form_engagement"]
+            return {k: round(float(v), 4) for k, v in zip(keys, beta)}
+        except (np.linalg.LinAlgError, ValueError):
+            return None
+
+    # ------------------------------------------------------------------
+    # Variance reduction (v2)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def winsorize_scores(scores: list[float], percentile: float = 95.0) -> list[float]:
+        """Cap outlier engagement scores at the given percentile.
+
+        Parameters
+        ----------
+        scores : list[float]
+            Raw engagement scores.
+        percentile : float
+            Upper percentile to cap at (default 95th).
+
+        Returns
+        -------
+        list[float]
+            Winsorized scores.
+        """
+        if not scores:
+            return []
+        arr = np.array(scores)
+        cap = float(np.percentile(arr, percentile))
+        return np.minimum(arr, cap).tolist()
+
+    @staticmethod
+    def cuped_adjust(
+        scores: list[float],
+        pre_experiment_scores: list[float],
+    ) -> list[float]:
+        """CUPED (Controlled-experiment Using Pre-Experiment Data) adjustment.
+
+        adjusted_Y = Y - theta * (X - mean(X))
+
+        where theta = cov(Y, X) / var(X).
+
+        Parameters
+        ----------
+        scores : list[float]
+            Post-experiment engagement scores (Y).
+        pre_experiment_scores : list[float]
+            Pre-experiment engagement scores for the same visitors (X).
+
+        Returns
+        -------
+        list[float]
+            Variance-adjusted scores.
+        """
+        if not scores or not pre_experiment_scores:
+            return list(scores) if scores else []
+        if len(scores) != len(pre_experiment_scores):
+            return list(scores)
+
+        Y = np.array(scores)
+        X = np.array(pre_experiment_scores)
+
+        var_x = float(np.var(X))
+        if var_x < 1e-10:
+            return list(scores)
+
+        cov_xy = float(np.cov(Y, X, ddof=0)[0, 1])
+        theta = cov_xy / var_x
+        adjusted = Y - theta * (X - np.mean(X))
+        return adjusted.tolist()

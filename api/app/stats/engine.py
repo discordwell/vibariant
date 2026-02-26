@@ -1,25 +1,30 @@
 """StatsEngine — orchestrator that ties together Bayesian models, bandits,
-proxy metrics, and recommendation generation into a single ``analyze_experiment``
-call.
+proxy metrics, priors, shrinkage, and recommendation generation into a single
+``analyze_experiment`` call.
 
 This is the main entry point for the stats router and the dashboard.
 """
 
 from __future__ import annotations
 
+import math
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
+import numpy as np
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.event import Event
 from app.models.experiment import Experiment
 from app.models.goal import Goal
-from app.stats.bandits import ThompsonSampler
+from app.stats.bandits import TopTwoThompsonSampler
 from app.stats.bayesian import BetaBinomial
 from app.stats.decisions import expected_loss, generate_recommendation
+from app.stats.priors import resolve_prior
 from app.stats.proxy import ProxyMetrics
+from app.stats.shrinkage import shrink_current_effect
 
 
 class StatsEngine:
@@ -42,15 +47,17 @@ class StatsEngine:
         """Run full statistical analysis on an experiment.
 
         Steps:
-        1. Query events grouped by variant
-        2. Count visitors and conversions per variant
-        3. Build BetaBinomial models per variant
-        4. Compute probability of each variant being best
-        5. Compute expected loss
-        6. If conversions are sparse, compute proxy metrics from engagement events
-        7. Run Thompson Sampling to get recommended traffic allocation
-        8. Generate plain-English recommendation
-        9. Return complete results dict
+        1. Resolve prior (user-elicited > project historical > platform default)
+        2. Query events grouped by variant
+        3. Count visitors and conversions per variant
+        4. Build BetaBinomial models per variant
+        5. Compute probability of each variant being best
+        6. Compute expected loss
+        7. If conversions are sparse, compute proxy metrics from engagement events
+        8. Run Top-Two Thompson Sampling to get recommended traffic allocation
+        9. Generate structured recommendation with epsilon stopping + ROPE
+        10. Compute shrinkage-adjusted effect size
+        11. Return complete results dict
 
         Parameters
         ----------
@@ -67,7 +74,17 @@ class StatsEngine:
         project_id: UUID = experiment.project_id
 
         # ----------------------------------------------------------
-        # 1 & 2. Query visitors and conversions per variant
+        # 1. Resolve prior
+        # ----------------------------------------------------------
+        prior, prior_used = await resolve_prior(
+            self.db,
+            project_id,
+            getattr(experiment, "expected_conversion_rate", None),
+            getattr(experiment, "prior_confidence", None),
+        )
+
+        # ----------------------------------------------------------
+        # 2 & 3. Query visitors and conversions per variant
         # ----------------------------------------------------------
         variant_data: list[dict[str, Any]] = []
         models: list[BetaBinomial] = []
@@ -82,8 +99,7 @@ class StatsEngine:
             )
             conversions_per_variant[variant_key] = conversions
 
-            # 3. Build BetaBinomial model with informative prior
-            prior = BetaBinomial(prior_alpha=1.0, prior_beta=19.0)
+            # 4. Build BetaBinomial model with resolved prior
             model = prior.update(conversions, visitors)
             models.append(model)
 
@@ -106,7 +122,7 @@ class StatsEngine:
         total_visitors = sum(v["visitors"] for v in variant_data)
 
         # ----------------------------------------------------------
-        # 4. Probability of each variant being best
+        # 5. Probability of each variant being best
         # ----------------------------------------------------------
         prob_best: list[float] | None = None
         prob_b_beats_a: float | None = None
@@ -118,14 +134,14 @@ class StatsEngine:
             prob_best = [round(p, 4) for p in BetaBinomial.probability_best(models)]
 
         # ----------------------------------------------------------
-        # 5. Expected loss
+        # 6. Expected loss
         # ----------------------------------------------------------
         exp_loss: list[float] | None = None
         if len(models) >= 2:
             exp_loss = [round(x, 6) for x in expected_loss(models)]
 
         # ----------------------------------------------------------
-        # 6. Proxy metrics if conversions are sparse
+        # 7. Proxy metrics if conversions are sparse
         # ----------------------------------------------------------
         has_enough_conversions = ProxyMetrics.has_sufficient_conversion_data(
             conversions_per_variant, min_conversions=3
@@ -151,6 +167,10 @@ class StatsEngine:
                         ProxyMetrics.compute_engagement_score(vevents)
                         for vevents in visitor_events.values()
                     ]
+
+                    # Apply winsorization to cap outliers
+                    scores = ProxyMetrics.winsorize_scores(scores, percentile=95.0)
+
                     variant_scores[variant_key] = scores
 
                     # Set mean engagement score on variant data
@@ -163,11 +183,11 @@ class StatsEngine:
                 engagement_comparison = ProxyMetrics.compare_variants(variant_scores)
 
         # ----------------------------------------------------------
-        # 7. Thompson Sampling traffic allocation
+        # 8. Top-Two Thompson Sampling traffic allocation
         # ----------------------------------------------------------
         suggested_allocation: dict[str, float] | None = None
         if len(models) >= 2:
-            sampler = ThompsonSampler(models)
+            sampler = TopTwoThompsonSampler(models, min_allocation=0.10)
             raw_alloc = sampler.get_allocation(n_samples=10_000)
             suggested_allocation = {
                 variant_keys[i]: round(raw_alloc[i], 4)
@@ -175,20 +195,86 @@ class StatsEngine:
             }
 
         # ----------------------------------------------------------
-        # 8. Generate recommendation
+        # 9. Generate structured recommendation
         # ----------------------------------------------------------
+        loss_threshold = getattr(experiment, "loss_threshold", 0.005)
+        rope_width = getattr(experiment, "rope_width", 0.005)
+
         recommendation_input: dict[str, Any] = {
             "variants": variant_data,
             "probability_best": prob_best,
             "probability_b_beats_a": prob_b_beats_a,
             "expected_loss": exp_loss,
             "engagement_comparison": engagement_comparison,
+            "models": models,
         }
-        recommendation = generate_recommendation(recommendation_input)
+        decision = generate_recommendation(
+            recommendation_input,
+            loss_threshold=loss_threshold,
+            rope_width=rope_width,
+        )
 
         # ----------------------------------------------------------
-        # 9. Assemble results
+        # 10. Shrinkage-adjusted effect size
         # ----------------------------------------------------------
+        raw_effect_size: float | None = None
+        shrunk_effect_size: float | None = None
+
+        if len(variant_data) >= 2:
+            means = [v["posterior_mean"] for v in variant_data]
+            raw_effect_size = max(means) - min(means)
+
+            # Standard error approximation
+            total_conv = sum(v["conversions"] for v in variant_data)
+            total_vis = sum(v["visitors"] for v in variant_data)
+            if total_vis > 0 and total_conv > 0:
+                p_hat = total_conv / total_vis
+                se = math.sqrt(p_hat * (1 - p_hat) / total_vis) if p_hat < 1 else 0.01
+                shrunk = await shrink_current_effect(
+                    self.db, project_id, raw_effect_size, se
+                )
+                shrunk_effect_size = round(shrunk, 6) if shrunk is not None else None
+
+        # ----------------------------------------------------------
+        # 11. Compute decision progress
+        # ----------------------------------------------------------
+        decision_progress: dict[str, Any] | None = None
+        if exp_loss is not None and len(exp_loss) >= 2:
+            leading_loss = min(exp_loss)
+            confidence_pct = min(100.0, (1.0 - leading_loss / max(loss_threshold, 1e-10)) * 100)
+            confidence_pct = max(0.0, confidence_pct)
+
+            # Estimate days to decision based on daily visitor rate
+            daily_rate: float | None = None
+            estimated_days: float | None = None
+            if total_visitors > 0 and experiment.created_at:
+                now = datetime.now(timezone.utc)
+                created = experiment.created_at
+                if created.tzinfo is None:
+                    created = created.replace(tzinfo=timezone.utc)
+                else:
+                    created = created.astimezone(timezone.utc)
+                days_running = max((now - created).total_seconds() / 86400, 0.1)
+                daily_rate = total_visitors / days_running
+                if daily_rate > 0 and confidence_pct < 100:
+                    # Rough heuristic: linear extrapolation
+                    remaining_pct = 100 - confidence_pct
+                    estimated_days = round((remaining_pct / max(confidence_pct, 1)) * days_running, 1)
+
+            decision_progress = {
+                "confidence_pct": round(confidence_pct, 1),
+                "epsilon_threshold": loss_threshold,
+                "leading_variant_loss": round(leading_loss, 6),
+                "estimated_days": estimated_days,
+                "daily_visitor_rate": round(daily_rate, 1) if daily_rate else None,
+            }
+
+        # ----------------------------------------------------------
+        # 12. Assemble results
+        # ----------------------------------------------------------
+        # Keep backward-compat recommendation string
+        recommendation_str = decision.get("recommendation", "")
+
         return {
             "experiment_id": experiment.id,
             "experiment_key": experiment_key,
@@ -201,9 +287,20 @@ class StatsEngine:
                 if exp_loss
                 else None
             ),
-            "recommendation": recommendation,
+            "recommendation": recommendation_str,
             "suggested_allocation": suggested_allocation,
             "engagement_comparison": engagement_comparison,
+            # v2 fields
+            "decision": {
+                "decision_status": decision.get("decision_status", "collecting_data"),
+                "winning_variant": decision.get("winning_variant"),
+                "confidence_level": decision.get("confidence_level"),
+            },
+            "rope_analysis": decision.get("rope_analysis"),
+            "decision_progress": decision_progress,
+            "prior_used": prior_used,
+            "raw_effect_size": round(raw_effect_size, 6) if raw_effect_size is not None else None,
+            "shrunk_effect_size": shrunk_effect_size,
         }
 
     # ------------------------------------------------------------------

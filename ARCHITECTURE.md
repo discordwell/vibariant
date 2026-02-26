@@ -62,10 +62,17 @@ VibeVariant is an AB testing SaaS purpose-built for vibecoding. It provides mean
 Traditional AB testing requires thousands of observations for statistical significance. Bayesian inference provides useful posteriors even with 10-50 observations via informative priors and conjugate models.
 
 ### Thompson Sampling Bandits
-Instead of fixed 50/50 splits, Thompson Sampling automatically allocates more traffic to likely winners while continuing to explore. This minimizes regret for apps with few users.
+Instead of fixed 50/50 splits, Top-Two Thompson Sampling automatically allocates more traffic to likely winners while maintaining minimum exploration (10% floor). This minimizes regret for apps with few users while ensuring all variants receive data.
 
 ### Proxy Metrics
-When conversions are too sparse (1 vs 0), engagement signals (scroll depth, time on page, clicks, form engagement) serve as leading indicators, giving vibecoders actionable guidance before conversion data accumulates.
+When conversions are too sparse (1 vs 0), engagement signals (scroll depth, time on page, clicks, form engagement) serve as leading indicators, giving vibecoders actionable guidance before conversion data accumulates. Weights can be calibrated via OLS against historical conversion data. Winsorization and CUPED variance reduction are applied when available.
+
+### Stats Engine v2 Enhancements
+- **Expected Loss Epsilon Stopping**: Experiments declare "ready to ship" when the leading variant's expected loss falls below a configurable threshold (default 0.5%), reducing minimum viable sample from ~100 to ~30-50 visitors.
+- **ROPE Decision Rules**: Region of Practical Equivalence testing declares variants "practically equivalent" when the 95% HDI of their difference falls within the ROPE, preventing wasted testing on negligible differences.
+- **Adaptive Informative Priors**: Three-tier fallback chain (user-specified > project historical empirical Bayes > platform default Beta(1,19)). Historical priors use moment matching from past experiment results.
+- **James-Stein Shrinkage**: Cross-experiment effect size correction pulls extreme estimates toward the project grand mean, combating winner's curse.
+- **Structured Decisions**: Engine returns machine-readable decision status (collecting_data / keep_testing / ready_to_ship / practically_equivalent) alongside plain-English recommendations.
 
 ### Code-First Variants
 Variants are defined in React components via `useVariant()` hooks, not in a visual editor. This matches how vibecoders work — they're already in the code.

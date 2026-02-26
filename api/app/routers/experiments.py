@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -10,6 +11,8 @@ from app.core.dependencies import get_user_project
 from app.core.security import get_current_user
 from app.models.experiment import Experiment, ExperimentStatus
 from app.models.user import User
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["experiments"])
 
@@ -24,6 +27,11 @@ class ExperimentCreate(BaseModel):
     name: str
     variant_keys: list[str] = ["control", "variant"]
     traffic_percentage: float = 1.0
+    # v2 stats config
+    loss_threshold: float = 0.005
+    rope_width: float = 0.005
+    expected_conversion_rate: float | None = None
+    prior_confidence: float | None = None
 
 
 class ExperimentUpdate(BaseModel):
@@ -31,6 +39,11 @@ class ExperimentUpdate(BaseModel):
     status: ExperimentStatus | None = None
     variant_keys: list[str] | None = None
     traffic_percentage: float | None = None
+    # v2 stats config
+    loss_threshold: float | None = None
+    rope_width: float | None = None
+    expected_conversion_rate: float | None = None
+    prior_confidence: float | None = None
 
 
 class ExperimentOut(BaseModel):
@@ -41,6 +54,11 @@ class ExperimentOut(BaseModel):
     status: ExperimentStatus
     variant_keys: list[str]
     traffic_percentage: float
+    # v2 stats config
+    loss_threshold: float = 0.005
+    rope_width: float = 0.005
+    expected_conversion_rate: float | None = None
+    prior_confidence: float | None = None
 
     model_config = {"from_attributes": True}
 
@@ -89,6 +107,10 @@ async def create_experiment(
         name=body.name,
         variant_keys=body.variant_keys,
         traffic_percentage=body.traffic_percentage,
+        loss_threshold=body.loss_threshold,
+        rope_width=body.rope_width,
+        expected_conversion_rate=body.expected_conversion_rate,
+        prior_confidence=body.prior_confidence,
     )
     db.add(experiment)
     await db.flush()
@@ -115,11 +137,27 @@ async def update_experiment(
 ) -> ExperimentOut:
     """Update an experiment."""
     experiment = await _get_experiment(experiment_id, user, db)
+    old_status = experiment.status
     update_data = body.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(experiment, field, value)
     await db.flush()
     await db.refresh(experiment)
+
+    # On completion, save results snapshot for future shrinkage/priors
+    new_status = update_data.get("status")
+    if new_status == ExperimentStatus.completed and old_status != ExperimentStatus.completed:
+        try:
+            from app.stats.engine import StatsEngine
+            from app.stats.results_store import save_experiment_results
+
+            engine = StatsEngine(db)
+            analysis = await engine.analyze_experiment(experiment)
+            await save_experiment_results(db, experiment, analysis)
+            await db.flush()
+        except Exception:
+            logger.exception("Failed to save experiment results on completion for %s", experiment_id)
+
     return experiment
 
 

@@ -12,6 +12,35 @@ import numpy as np
 from scipy import stats as sp_stats
 
 
+def hdi_from_samples(samples: np.ndarray, credible_mass: float = 0.95) -> tuple[float, float]:
+    """Compute the Highest Density Interval from Monte Carlo samples.
+
+    Uses the sorted-interval method: find the shortest interval containing
+    ``credible_mass`` proportion of sorted samples.
+
+    Parameters
+    ----------
+    samples : np.ndarray
+        1-D array of Monte Carlo samples.
+    credible_mass : float
+        Probability mass to include (e.g. 0.95 for 95% HDI).
+
+    Returns
+    -------
+    tuple[float, float]
+        (lower_bound, upper_bound)
+    """
+    sorted_samples = np.sort(samples)
+    n = len(sorted_samples)
+    interval_size = int(np.ceil(credible_mass * n))
+    if interval_size >= n:
+        return (float(sorted_samples[0]), float(sorted_samples[-1]))
+
+    widths = sorted_samples[interval_size:] - sorted_samples[: n - interval_size]
+    best_idx = int(np.argmin(widths))
+    return (float(sorted_samples[best_idx]), float(sorted_samples[best_idx + interval_size - 1]))
+
+
 class BetaBinomial:
     """Immutable Beta-Binomial conjugate model.
 
@@ -96,6 +125,74 @@ class BetaBinomial:
         lower_tail = (1 - width) / 2
         dist = sp_stats.beta(self.alpha, self.beta)
         return (float(dist.ppf(lower_tail)), float(dist.ppf(1 - lower_tail)))
+
+    # ------------------------------------------------------------------
+    # HDI (Highest Density Interval)
+    # ------------------------------------------------------------------
+
+    def hdi(self, credible_mass: float = 0.95) -> tuple[float, float]:
+        """Highest Density Interval for the posterior.
+
+        Finds the narrowest interval containing ``credible_mass`` of the
+        posterior probability.  Uses grid search over the CDF.
+
+        Parameters
+        ----------
+        credible_mass : float
+            Probability mass to include (e.g. 0.95 for 95% HDI).
+
+        Returns
+        -------
+        tuple[float, float]
+            (lower_bound, upper_bound)
+        """
+        from scipy.optimize import minimize_scalar
+
+        dist = sp_stats.beta(self.alpha, self.beta)
+
+        def interval_width(low_tail: float) -> float:
+            return float(dist.ppf(low_tail + credible_mass) - dist.ppf(low_tail))
+
+        result = minimize_scalar(
+            interval_width,
+            bounds=(0.0, 1.0 - credible_mass),
+            method="bounded",
+        )
+        low = float(dist.ppf(result.x))
+        high = float(dist.ppf(result.x + credible_mass))
+        return (low, high)
+
+    @staticmethod
+    def difference_hdi(
+        model_a: BetaBinomial,
+        model_b: BetaBinomial,
+        credible_mass: float = 0.95,
+        n_samples: int = 50_000,
+        seed: int = 42,
+    ) -> tuple[float, float]:
+        """HDI of (theta_B - theta_A) via Monte Carlo.
+
+        Parameters
+        ----------
+        model_a, model_b : BetaBinomial
+            The two posterior models.
+        credible_mass : float
+            Probability mass for the HDI.
+        n_samples : int
+            Number of MC samples.
+        seed : int
+            RNG seed.
+
+        Returns
+        -------
+        tuple[float, float]
+            (lower_bound, upper_bound) of the difference HDI.
+        """
+        rng = np.random.default_rng(seed)
+        sa = rng.beta(model_a.alpha, model_a.beta, size=n_samples)
+        sb = rng.beta(model_b.alpha, model_b.beta, size=n_samples)
+        diff = sb - sa
+        return hdi_from_samples(diff, credible_mass)
 
     # ------------------------------------------------------------------
     # Sampling and comparison

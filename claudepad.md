@@ -1,14 +1,25 @@
 # Session Summaries
 
+## 2026-02-26TXX:XXZ — Stats Engine v2 implementation complete
+- All 10 phases implemented: epsilon stopping, ROPE, TopTwo Thompson, adaptive priors, calibration, winsorize/CUPED, shrinkage, API schemas, dashboard UX
+- 135 tests passing (73 existing + 62 new), all backward compatible
+- Dashboard builds clean with 5 new components + rewritten experiment detail page
+- generate_recommendation() now returns dict instead of str (breaking change, existing tests updated)
+- New DB migration: 4 columns on experiments + experiment_results table
+- Code review agents launched for correctness + refactoring
+
+## 2026-02-26T11:10Z — Phase 5 COMPLETE: deployed to OVH VPS
+- All review fixes committed and pushed (25a470a, 0cfe60f)
+- Docker images built on VPS, all 3 containers running (db healthy, api 8090, dashboard 3002)
+- Kamal proxy routes added: vibevariant.com → dashboard, api.vibevariant.com → API
+- TLS auto-provisioned via Let's Encrypt (will work once DNS is pointed)
+- Pending: register vibevariant.com domain, point DNS to 54.37.226.6 (A records for @, www, api)
+- Pending: GitHub OAuth app setup (fill GITHUB_CLIENT_ID/SECRET in .env)
+
 ## 2026-02-26T10:15Z — Phase 5 review fixes + Suspense boundary fix
-- Fixed CRITICAL: Created GitHub OAuth callback + magic link verify pages
-- Fixed CRITICAL: API port mismatch (8001→8000 default in dashboard api.ts)
-- Fixed HIGH: Infinite loading spinners on 3 dashboard pages when no project
-- Fixed HIGH: Logout race condition (loggingOut guard)
-- Added .dockerignore files for both api/ and dashboard/
-- Fixed Next.js build failure: useSearchParams() wrapped in Suspense boundaries
-- Dashboard builds clean (11 routes, all static except experiments/[id])
-- Pending: commit + push, then deployment to OVH VPS
+- Fixed CRITICALs: auth pages, port mismatch, loading spinners, logout race, Suspense boundaries
+- Extracted completeLogin() helper to deduplicate auth flow
+- Dashboard builds clean (11 routes)
 
 ## 2026-02-26T09:35Z — Phases 3-4 completed + code review fixes
 - Phase 3 (SDK auto-tracking + goal detection) and Phase 4 (stats engine) completed by parallel agents

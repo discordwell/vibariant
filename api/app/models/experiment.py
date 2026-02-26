@@ -1,6 +1,7 @@
 import enum
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import DateTime, Enum, Float, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -29,6 +30,12 @@ class Experiment(Base):
     variant_keys: Mapped[list] = mapped_column(JSONB, nullable=False, default=lambda: ["control", "variant"])
     traffic_percentage: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    # Stats engine v2 config
+    loss_threshold: Mapped[float] = mapped_column(Float, nullable=False, default=0.005, server_default="0.005")
+    rope_width: Mapped[float] = mapped_column(Float, nullable=False, default=0.005, server_default="0.005")
+    expected_conversion_rate: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    prior_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     __table_args__ = (
         UniqueConstraint("project_id", "key", name="uq_experiment_project_key"),

@@ -1,7 +1,8 @@
 """Stats router — exposes experiment analysis results via the API.
 
 Returns per-variant metrics, Bayesian comparisons, expected loss,
-Thompson Sampling allocation, and plain-English recommendations.
+Thompson Sampling allocation, ROPE analysis, decision progress,
+and structured recommendations.
 """
 
 from uuid import UUID
@@ -42,6 +43,34 @@ class EngagementComparison(BaseModel):
     summary: str | None = None
 
 
+class RopeResult(BaseModel):
+    decision: str | None = None  # "ship_a"|"ship_b"|"equivalent"|"undecided"
+    hdi: tuple[float, float] | None = None
+    rope: tuple[float, float] | None = None
+    hdi_in_rope: bool | None = None
+    hdi_outside_rope: bool | None = None
+    # Multi-variant fields
+    leader: str | None = None
+    pairwise: list[dict] | None = None
+    # Pairwise identifiers
+    variant_a: str | None = None
+    variant_b: str | None = None
+
+
+class DecisionInfo(BaseModel):
+    decision_status: str  # "collecting_data"|"keep_testing"|"ready_to_ship"|"practically_equivalent"
+    winning_variant: str | None = None
+    confidence_level: str | None = None  # "low"|"medium"|"high"
+
+
+class DecisionProgress(BaseModel):
+    confidence_pct: float  # 0-100
+    epsilon_threshold: float
+    leading_variant_loss: float
+    estimated_days: float | None = None
+    daily_visitor_rate: float | None = None
+
+
 class ExperimentResults(BaseModel):
     experiment_id: UUID
     experiment_key: str
@@ -53,6 +82,13 @@ class ExperimentResults(BaseModel):
     recommendation: str | None = None
     suggested_allocation: dict[str, float] | None = None
     engagement_comparison: EngagementComparison | None = None
+    # v2 fields
+    decision: DecisionInfo | None = None
+    rope_analysis: RopeResult | None = None
+    decision_progress: DecisionProgress | None = None
+    prior_used: str | None = None
+    raw_effect_size: float | None = None
+    shrunk_effect_size: float | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -73,8 +109,8 @@ async def get_experiment_results(
 
     Returns per-variant metrics (visitors, conversions, posterior mean,
     credible interval, engagement score), overall comparison metrics
-    (probability best, expected loss, Thompson allocation), and a
-    plain-English recommendation.
+    (probability best, expected loss, Thompson allocation), ROPE analysis,
+    decision progress, and a structured recommendation.
     """
     result = await db.execute(
         select(Experiment).where(Experiment.id == experiment_id)

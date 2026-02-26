@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import type { Experiment, ExperimentResults, VariantResult } from "@/lib/api";
 import { api } from "@/lib/api";
+import { DecisionStatusBadge } from "@/components/experiments/DecisionStatusBadge";
+import { ExpectedLossHero } from "@/components/experiments/ExpectedLossHero";
+import { RopeCredibleIntervalBar } from "@/components/experiments/RopeCredibleIntervalBar";
+import { StructuredRecommendation } from "@/components/experiments/StructuredRecommendation";
 
 const statusColors: Record<string, { bg: string; text: string; dot: string }> = {
   draft: { bg: "bg-zinc-800", text: "text-zinc-400", dot: "bg-zinc-500" },
@@ -12,28 +16,6 @@ const statusColors: Record<string, { bg: string; text: string; dot: string }> = 
   paused: { bg: "bg-amber-500/10", text: "text-amber-400", dot: "bg-amber-400" },
   completed: { bg: "bg-blue-500/10", text: "text-blue-400", dot: "bg-blue-400" },
 };
-
-function CredibleIntervalBar({ result, maxRate }: { result: VariantResult; maxRate: number }) {
-  const scale = maxRate > 0 ? 100 / maxRate : 0;
-  const left = result.credible_interval[0] * scale;
-  const right = result.credible_interval[1] * scale;
-  const point = result.conversion_rate * scale;
-
-  return (
-    <div className="relative h-6 bg-zinc-800 rounded-full overflow-hidden">
-      {/* Credible interval bar */}
-      <div
-        className="absolute top-1 bottom-1 bg-violet-500/20 rounded-full"
-        style={{ left: `${left}%`, width: `${right - left}%` }}
-      />
-      {/* Point estimate */}
-      <div
-        className="absolute top-0.5 bottom-0.5 w-1 bg-violet-500 rounded-full"
-        style={{ left: `${point}%` }}
-      />
-    </div>
-  );
-}
 
 export default function ExperimentDetailPage() {
   const params = useParams();
@@ -44,6 +26,8 @@ export default function ExperimentDetailPage() {
   const [resultsLoading, setResultsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updating, setUpdating] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const refreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchExperiment = useCallback(async () => {
     try {
@@ -63,7 +47,6 @@ export default function ExperimentDetailPage() {
       const res = await api.getExperimentResults(id);
       setResults(res);
     } catch {
-      // Results might not exist yet (experiment just created or no events) -- that's ok
       setResults(null);
     } finally {
       setResultsLoading(false);
@@ -75,13 +58,24 @@ export default function ExperimentDetailPage() {
     fetchResults();
   }, [fetchExperiment, fetchResults]);
 
+  // Auto-refresh every 30s for running experiments
+  useEffect(() => {
+    if (experiment?.status === "running") {
+      refreshRef.current = setInterval(() => {
+        fetchResults();
+      }, 30_000);
+    }
+    return () => {
+      if (refreshRef.current) clearInterval(refreshRef.current);
+    };
+  }, [experiment?.status, fetchResults]);
+
   const handleStatusChange = async (newStatus: "running" | "paused" | "completed") => {
     if (!experiment) return;
     setUpdating(true);
     try {
       const updated = await api.updateExperiment(id, { status: newStatus });
       setExperiment(updated);
-      // Refetch results if we started the experiment
       if (newStatus === "running") fetchResults();
     } catch (err: unknown) {
       const apiErr = err as { detail?: string };
@@ -113,9 +107,7 @@ export default function ExperimentDetailPage() {
         <h2 className="text-xl font-semibold text-zinc-300">
           Experiment not found
         </h2>
-        <p className="text-zinc-500 mt-2">
-          {error}
-        </p>
+        <p className="text-zinc-500 mt-2">{error}</p>
         <Link
           href="/dashboard/experiments"
           className="text-violet-400 hover:text-violet-300 text-sm mt-4 inline-block"
@@ -149,7 +141,6 @@ export default function ExperimentDetailPage() {
   const variantKeys = experiment.variant_keys ?? [];
   const hasResults = results && results.variants.length > 0 && results.total_visitors > 0;
 
-  // Compute max rate for credible interval visualization
   const maxRate = hasResults
     ? Math.max(
         ...results.variants.map((r) => r.credible_interval[1]),
@@ -157,7 +148,6 @@ export default function ExperimentDetailPage() {
       )
     : 0;
 
-  // Find the best variant (highest posterior mean or conversion rate)
   const bestVariant = hasResults
     ? results.variants.reduce((best, v) =>
         (v.posterior_mean ?? v.conversion_rate) > (best.posterior_mean ?? best.conversion_rate) ? v : best
@@ -199,6 +189,9 @@ export default function ExperimentDetailPage() {
               {experiment.status.charAt(0).toUpperCase() +
                 experiment.status.slice(1)}
             </span>
+            {hasResults && results.decision && (
+              <DecisionStatusBadge decision={results.decision} />
+            )}
           </div>
           <p className="text-zinc-500 text-sm mt-1 font-mono">
             {experiment.key}
@@ -253,7 +246,7 @@ export default function ExperimentDetailPage() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats summary */}
       <div className="grid grid-cols-4 gap-4 mb-8">
         <div className="bg-zinc-850 border border-zinc-800 rounded-xl p-4">
           <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">
@@ -326,6 +319,11 @@ export default function ExperimentDetailPage() {
           <div className="skeleton h-64 w-full rounded-xl" />
           <div className="skeleton h-48 w-full rounded-xl" />
         </div>
+      )}
+
+      {/* Decision Progress Hero (replaces old expected loss section) */}
+      {hasResults && results.expected_loss && (
+        <ExpectedLossHero results={results} />
       )}
 
       {/* Variant Comparison Table */}
@@ -417,7 +415,7 @@ export default function ExperimentDetailPage() {
         </div>
       )}
 
-      {/* Credible Intervals Visualization */}
+      {/* Credible Intervals with ROPE overlay */}
       {hasResults && (
         <div className="bg-zinc-850 border border-zinc-800 rounded-xl p-5 mb-6">
           <h2 className="text-sm font-semibold text-zinc-200 mb-4">
@@ -435,65 +433,155 @@ export default function ExperimentDetailPage() {
                     {(result.credible_interval[1] * 100).toFixed(1)}%
                   </span>
                 </div>
-                <CredibleIntervalBar result={result} maxRate={maxRate * 1.2} />
+                <RopeCredibleIntervalBar
+                  result={result}
+                  maxRate={maxRate * 1.2}
+                  ropeAnalysis={results.rope_analysis}
+                />
               </div>
             ))}
           </div>
           <p className="text-xs text-zinc-600 mt-3">
             The bar shows the 95% credible interval. The line marks the observed
             conversion rate.
+            {results.rope_analysis && (
+              <> The amber band shows the ROPE (Region of Practical Equivalence).</>
+            )}
           </p>
         </div>
       )}
 
-      {/* Expected Loss */}
-      {hasResults && results.expected_loss && (
+      {/* Winner's Curse: Raw vs Shrunk Effect Size */}
+      {hasResults && results.raw_effect_size != null && results.shrunk_effect_size != null && (
         <div className="bg-zinc-850 border border-zinc-800 rounded-xl p-5 mb-6">
           <h2 className="text-sm font-semibold text-zinc-200 mb-3">
-            Expected Loss
+            Effect Size (Winner&apos;s Curse Correction)
           </h2>
           <div className="grid grid-cols-2 gap-4">
-            {typeof results.expected_loss === "object" &&
-              Object.entries(results.expected_loss).map(([key, value]) => (
-                <div key={key} className="flex items-center justify-between bg-zinc-800 rounded-lg px-4 py-2.5">
-                  <span className="text-sm text-zinc-300 font-mono">{key}</span>
-                  <span className="text-sm font-medium text-zinc-200">
-                    {(value * 100).toFixed(3)}%
-                  </span>
+            <div>
+              <p className="text-xs text-zinc-500 mb-1">Raw Effect</p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-3 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-zinc-500 rounded-full"
+                    style={{
+                      width: `${Math.min(100, results.raw_effect_size * 1000)}%`,
+                    }}
+                  />
                 </div>
-              ))}
+                <span className="text-sm font-medium text-zinc-300 w-16 text-right">
+                  {(results.raw_effect_size * 100).toFixed(2)}%
+                </span>
+              </div>
+            </div>
+            <div>
+              <p className="text-xs text-zinc-500 mb-1">
+                Shrunk Effect{" "}
+                <span className="text-zinc-600">(corrected)</span>
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-3 bg-zinc-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-violet-500 rounded-full"
+                    style={{
+                      width: `${Math.min(100, results.shrunk_effect_size * 1000)}%`,
+                    }}
+                  />
+                </div>
+                <span className="text-sm font-medium text-violet-300 w-16 text-right">
+                  {(results.shrunk_effect_size * 100).toFixed(2)}%
+                </span>
+              </div>
+            </div>
           </div>
+          <p className="text-xs text-zinc-600 mt-2">
+            Shrinkage corrects for winner&apos;s curse by pulling extreme estimates toward the project average.
+          </p>
         </div>
       )}
 
-      {/* Recommendation */}
+      {/* Structured Recommendation (replaces plain text) */}
       {hasResults && results.recommendation && (
-        <div className="bg-zinc-850 border border-violet-500/20 rounded-xl p-5">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-violet-500/10 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-              <svg
-                className="w-4 h-4 text-violet-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                />
-              </svg>
+        <StructuredRecommendation results={results} />
+      )}
+
+      {/* Expandable Statistical Details */}
+      {hasResults && (
+        <div className="mt-6">
+          <button
+            onClick={() => setShowDetails(!showDetails)}
+            className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors flex items-center gap-1"
+          >
+            <svg
+              className={`w-3 h-3 transition-transform ${showDetails ? "rotate-90" : ""}`}
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
+            Statistical Details
+          </button>
+
+          {showDetails && (
+            <div className="mt-3 bg-zinc-850 border border-zinc-800 rounded-xl p-5 space-y-3">
+              {results.prior_used && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Prior Source</span>
+                  <span className="text-zinc-300 font-mono">{results.prior_used}</span>
+                </div>
+              )}
+              {results.probability_best && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">P(best)</span>
+                  <span className="text-zinc-300 font-mono">
+                    [{results.probability_best.map((p) => (p * 100).toFixed(1) + "%").join(", ")}]
+                  </span>
+                </div>
+              )}
+              {results.suggested_allocation && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Suggested Allocation</span>
+                  <span className="text-zinc-300 font-mono">
+                    {Object.entries(results.suggested_allocation)
+                      .map(([k, v]) => `${k}: ${(v * 100).toFixed(0)}%`)
+                      .join(", ")}
+                  </span>
+                </div>
+              )}
+              {results.decision?.decision_status && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Decision Status</span>
+                  <span className="text-zinc-300 font-mono">{results.decision.decision_status}</span>
+                </div>
+              )}
+              {results.rope_analysis?.hdi && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Difference HDI (95%)</span>
+                  <span className="text-zinc-300 font-mono">
+                    [{(results.rope_analysis.hdi[0] * 100).toFixed(2)}%, {(results.rope_analysis.hdi[1] * 100).toFixed(2)}%]
+                  </span>
+                </div>
+              )}
+              {experiment.loss_threshold != null && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">Loss Threshold (epsilon)</span>
+                  <span className="text-zinc-300 font-mono">{(experiment.loss_threshold * 100).toFixed(3)}%</span>
+                </div>
+              )}
+              {experiment.rope_width != null && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-zinc-500">ROPE Width</span>
+                  <span className="text-zinc-300 font-mono">+/-{(experiment.rope_width * 100).toFixed(3)}%</span>
+                </div>
+              )}
             </div>
-            <div>
-              <h2 className="text-sm font-semibold text-violet-300 mb-1">
-                Recommendation
-              </h2>
-              <p className="text-sm text-zinc-300 leading-relaxed">
-                {results.recommendation}
-              </p>
-            </div>
-          </div>
+          )}
         </div>
       )}
     </div>

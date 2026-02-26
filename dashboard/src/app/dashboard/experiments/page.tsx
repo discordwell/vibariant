@@ -31,6 +31,9 @@ export default function ExperimentsPage() {
   const [newKey, setNewKey] = useState("");
   const [newVariants, setNewVariants] = useState("control, variant");
   const [newTraffic, setNewTraffic] = useState("100");
+  // v2 prior config
+  const [newExpectedRate, setNewExpectedRate] = useState("");
+  const [newPriorConfidence, setNewPriorConfidence] = useState("none");
 
   const fetchExperiments = useCallback(async () => {
     if (!projectId) {
@@ -60,12 +63,24 @@ export default function ExperimentsPage() {
 
     setCreating(true);
     try {
+      const parsedRate = parseFloat(newExpectedRate);
+      const confidenceMap: Record<string, number | null> = {
+        none: null,
+        low: 10,
+        medium: 30,
+        high: 60,
+      };
       const payload: CreateExperimentPayload = {
         project_id: projectId,
         key: newKey.trim(),
         name: newName.trim(),
         variant_keys: newVariants.split(",").map((v) => v.trim()).filter(Boolean),
         traffic_percentage: Math.min(1, Math.max(0, parseFloat(newTraffic) / 100)),
+        expected_conversion_rate:
+          !isNaN(parsedRate) && parsedRate > 0 && parsedRate < 100
+            ? parsedRate / 100
+            : null,
+        prior_confidence: confidenceMap[newPriorConfidence] ?? null,
       };
       const created = await api.createExperiment(payload);
       setShowCreateModal(false);
@@ -73,6 +88,8 @@ export default function ExperimentsPage() {
       setNewKey("");
       setNewVariants("control, variant");
       setNewTraffic("100");
+      setNewExpectedRate("");
+      setNewPriorConfidence("none");
       // Navigate to the new experiment
       router.push(`/dashboard/experiments/${created.id}`);
     } catch (err: unknown) {
@@ -307,6 +324,63 @@ export default function ExperimentsPage() {
                   <span className="text-sm text-zinc-500">%</span>
                 </div>
               </div>
+              {/* v2: Prior configuration */}
+              <div className="border-t border-zinc-800 pt-4">
+                <p className="text-xs font-medium text-zinc-400 mb-3">
+                  Prior Configuration{" "}
+                  <span className="text-zinc-600">(optional)</span>
+                </p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                      Expected Conversion Rate
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={newExpectedRate}
+                        onChange={(e) => setNewExpectedRate(e.target.value)}
+                        placeholder="e.g., 5"
+                        min="0.1"
+                        max="99"
+                        step="0.1"
+                        className="w-24 bg-zinc-850 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500/40 transition-all"
+                      />
+                      <span className="text-sm text-zinc-500">%</span>
+                    </div>
+                    <p className="text-xs text-zinc-600 mt-1">
+                      Your best guess at the baseline conversion rate
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-400 mb-1.5">
+                      Prior Confidence
+                    </label>
+                    <div className="flex gap-2">
+                      {(["none", "low", "medium", "high"] as const).map((level) => (
+                        <button
+                          key={level}
+                          type="button"
+                          onClick={() => setNewPriorConfidence(level)}
+                          className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                            newPriorConfidence === level
+                              ? "bg-violet-600 text-white"
+                              : "bg-zinc-800 text-zinc-500 hover:text-zinc-300"
+                          }`}
+                        >
+                          {level === "none"
+                            ? "Auto"
+                            : level.charAt(0).toUpperCase() + level.slice(1)}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs text-zinc-600 mt-1">
+                      How confident you are in the expected rate (Auto uses project history or defaults)
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   type="button"

@@ -575,7 +575,11 @@ class TestProxyMetricComparison:
 
 
 class TestRecommendations:
-    """Test generate_recommendation for each scenario."""
+    """Test generate_recommendation for each scenario.
+
+    Note: generate_recommendation now returns a dict. The ``recommendation``
+    field contains the plain-English string.
+    """
 
     def test_very_early_few_visitors(self):
         """< 10 visitors: 'Just getting started' message."""
@@ -585,7 +589,8 @@ class TestRecommendations:
                 {"variant_key": "variant", "visitors": 4, "conversions": 0},
             ],
         }
-        rec = generate_recommendation(analysis)
+        result = generate_recommendation(analysis)
+        rec = result["recommendation"]
         assert "Just getting started" in rec
         assert "7 visitors" in rec
 
@@ -597,7 +602,8 @@ class TestRecommendations:
                 {"variant_key": "variant", "visitors": 30, "conversions": 0},
             ],
         }
-        rec = generate_recommendation(analysis)
+        result = generate_recommendation(analysis)
+        rec = result["recommendation"]
         assert "Too early to tell" in rec
         assert "60 visitors" in rec
 
@@ -612,13 +618,13 @@ class TestRecommendations:
                 "summary": "Variant variant shows 40% higher engagement than control (0.700 vs 0.500).",
             },
         }
-        rec = generate_recommendation(analysis)
+        result = generate_recommendation(analysis)
+        rec = result["recommendation"]
         assert "Not enough conversions yet" in rec
         assert "engagement" in rec.lower()
 
     def test_high_confidence_winner(self):
         """Strong signal with enough conversions: recommend switching."""
-        # Build real models so probability_best is meaningful
         models = [
             BetaBinomial().update(2, 100),
             BetaBinomial().update(15, 100),
@@ -633,9 +639,11 @@ class TestRecommendations:
             "probability_b_beats_a": prob,
             "probability_best": [1 - prob, prob],
             "expected_loss": losses,
+            "models": models,
         }
-        rec = generate_recommendation(analysis)
-        assert "winning" in rec.lower() or "is winning" in rec
+        result = generate_recommendation(analysis)
+        rec = result["recommendation"]
+        assert "winning" in rec.lower() or "ready to ship" in rec.lower()
 
     def test_too_early_similar_variants(self):
         """Moderate data, similar conversion rates: keep testing."""
@@ -653,9 +661,10 @@ class TestRecommendations:
             "probability_b_beats_a": prob,
             "probability_best": [1 - prob, prob],
             "expected_loss": losses,
+            "models": models,
         }
-        rec = generate_recommendation(analysis)
-        # Should recommend continuing, not declare a winner
+        result = generate_recommendation(analysis)
+        rec = result["recommendation"]
         assert "keep testing" in rec.lower() or "too early" in rec.lower()
 
     def test_three_variant_recommendation_copy(self):
@@ -675,8 +684,10 @@ class TestRecommendations:
             ],
             "probability_best": probs,
             "expected_loss": losses,
+            "models": models,
         }
-        rec = generate_recommendation(analysis)
+        result = generate_recommendation(analysis)
+        rec = result["recommendation"]
         assert "both variants" not in rec.lower()
 
     def test_1_vs_0_conversions_recommendation(self):
@@ -701,16 +712,18 @@ class TestRecommendations:
             "probability_b_beats_a": prob,
             "probability_best": [1 - prob, prob],
             "expected_loss": losses,
+            "models": models,
         }
-        rec = generate_recommendation(analysis)
-        # 1 total conversion -> should note sparse data
+        result = generate_recommendation(analysis)
+        rec = result["recommendation"]
         assert "too early" in rec.lower() or "not enough" in rec.lower()
 
         # Case 2: with engagement data
         analysis["engagement_comparison"] = {
             "summary": "Variant control shows 25% higher engagement than variant.",
         }
-        rec2 = generate_recommendation(analysis)
+        result2 = generate_recommendation(analysis)
+        rec2 = result2["recommendation"]
         assert "not enough conversions" in rec2.lower() or "engagement" in rec2.lower()
 
 
@@ -751,9 +764,11 @@ class TestStatsPipeline:
             "probability_b_beats_a": prob,
             "probability_best": [1 - prob, prob],
             "expected_loss": losses,
+            "models": [model_a, model_b],
         }
-        rec = generate_recommendation(analysis)
-        assert "winning" in rec.lower()
+        result = generate_recommendation(analysis)
+        rec = result["recommendation"]
+        assert "winning" in rec.lower() or "ready to ship" in rec.lower()
 
     def test_full_pipeline_no_data(self):
         """Simulate an experiment with no events at all."""
@@ -769,7 +784,8 @@ class TestStatsPipeline:
                 {"variant_key": "variant", "visitors": 0, "conversions": 0},
             ],
         }
-        rec = generate_recommendation(analysis)
+        result = generate_recommendation(analysis)
+        rec = result["recommendation"]
         assert "just getting started" in rec.lower()
 
     def test_full_pipeline_prior_influence(self):
