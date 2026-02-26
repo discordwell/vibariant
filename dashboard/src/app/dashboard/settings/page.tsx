@@ -100,9 +100,9 @@ export default function SettingsPage() {
           <div className="mt-4 bg-zinc-900/50 border border-zinc-800 rounded-lg p-4">
             <p className="text-xs text-zinc-500 mb-2">Quick start:</p>
             <pre className="text-xs text-zinc-400 font-mono overflow-x-auto">
-              <code>{`import { VibeVariant } from '@vibevariant/sdk';
+              <code>{`import { Vibariant } from '@vibariant/sdk';
 
-VibeVariant.init({
+Vibariant.init({
   token: '${project?.project_token || "vv_proj_..."}',
 });`}</code>
             </pre>

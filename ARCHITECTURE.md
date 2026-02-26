@@ -1,7 +1,7 @@
-# VibeVariant Architecture
+# Vibariant Architecture
 
 ## Overview
-VibeVariant is an AB testing SaaS purpose-built for vibecoding. It provides meaningful statistical guidance even with tiny sample sizes (~100 users, 1 conversion vs 0 conversions) using Bayesian inference and multi-armed bandits.
+Vibariant is an AB testing SaaS purpose-built for vibecoding. It provides meaningful statistical guidance even with tiny sample sizes (~100 users, 1 conversion vs 0 conversions) using Bayesian inference and multi-armed bandits.
 
 ## System Architecture
 
@@ -35,7 +35,7 @@ VibeVariant is an AB testing SaaS purpose-built for vibecoding. It provides mean
 └────────────────────┘  └─────────────────────┘
 
 ┌──────────────────────────────────────────────┐
-│          JS SDK (@vibevariant/sdk)           │
+│          JS SDK (@vibariant/sdk)           │
 │  - React Provider + hooks                    │
 │  - Auto-tracking (clicks, scroll, forms)     │
 │  - Smart goal detection (DOM heuristics)     │

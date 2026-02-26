@@ -2,15 +2,15 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: vibevariant
-      POSTGRES_USER: vibevariant
+      POSTGRES_DB: vibariant
+      POSTGRES_USER: vibariant
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-localdev}
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vibevariant"]
+      test: ["CMD-SHELL", "pg_isready -U vibariant"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -21,7 +21,7 @@ services:
     ports:
       - "${API_PORT:-8000}:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://vibevariant:${POSTGRES_PASSWORD:-localdev}@db:5432/vibevariant
+      DATABASE_URL: postgresql+asyncpg://vibariant:${POSTGRES_PASSWORD:-localdev}@db:5432/vibariant
       SECRET_KEY: ${SECRET_KEY:-dev-secret-change-in-production}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}

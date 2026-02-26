@@ -42,7 +42,7 @@ export class EventBatcher {
   enqueue(event: TrackedEvent): void {
     this.queue.push(event);
     if (this.config.debug) {
-      console.debug('[VibeVariant] Event queued:', event.type, event.payload);
+      console.debug('[Vibariant] Event queued:', event.type, event.payload);
     }
     if (this.queue.length >= this.config.batching.maxSize) {
       void this.flush();
@@ -100,17 +100,17 @@ export class EventBatcher {
           // Server error — persist for retry
           this.persistPending(events);
           if (this.config.debug) {
-            console.warn('[VibeVariant] Flush failed:', response.status);
+            console.warn('[Vibariant] Flush failed:', response.status);
           }
         } else if (this.config.debug) {
-          console.debug(`[VibeVariant] Flushed ${events.length} events`);
+          console.debug(`[Vibariant] Flushed ${events.length} events`);
         }
       }
     } catch {
       // Network error — persist for retry
       this.persistPending(events);
       if (this.config.debug) {
-        console.warn('[VibeVariant] Flush failed: network error');
+        console.warn('[Vibariant] Flush failed: network error');
       }
     } finally {
       this.flushing = false;
@@ -133,7 +133,7 @@ export class EventBatcher {
     }
 
     if (this.config.debug) {
-      console.debug(`[VibeVariant] Retrying ${pending.length} pending events`);
+      console.debug(`[Vibariant] Retrying ${pending.length} pending events`);
     }
 
     await this.flush();

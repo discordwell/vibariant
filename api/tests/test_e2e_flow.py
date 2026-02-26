@@ -1,4 +1,4 @@
-"""End-to-end integration test for the core VibeVariant flow.
+"""End-to-end integration test for the core Vibariant flow.
 
 Tests the full lifecycle:
 1. Create user + project (with tokens)
@@ -17,7 +17,7 @@ from uuid import UUID
 import httpx
 import pytest
 
-sys.path.insert(0, "/Users/discordwell/Projects/vibevariant/api")
+sys.path.insert(0, "/Users/discordwell/Projects/vibariant/api")
 
 BASE_URL = "http://localhost:8001"
 
@@ -41,12 +41,12 @@ def setup_user_and_project():
         async with async_session() as db:
             # Check if test user already exists (idempotent)
             result = await db.execute(
-                select(User).where(User.email == "test@vibevariant.com")
+                select(User).where(User.email == "test@vibariant.com")
             )
             user = result.scalar_one_or_none()
 
             if user is None:
-                user = User(email="test@vibevariant.com", name="Test User")
+                user = User(email="test@vibariant.com", name="Test User")
                 db.add(user)
                 await db.flush()
 

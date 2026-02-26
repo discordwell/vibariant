@@ -46,7 +46,7 @@ export function assignVariantLocally(
   weights?: number[],
 ): VariantAssignment {
   if (variantKeys.length === 0) {
-    throw new Error(`[VibeVariant] Experiment "${experimentKey}" has no variants`);
+    throw new Error(`[Vibariant] Experiment "${experimentKey}" has no variants`);
   }
 
   const hash = fnv1a(`${visitorId}:${experimentKey}`);

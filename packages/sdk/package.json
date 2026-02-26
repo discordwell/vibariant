@@ -1,5 +1,5 @@
 {
-  "name": "@vibevariant/sdk",
+  "name": "@vibariant/sdk",
   "version": "0.1.0",
   "description": "AB testing SDK for vibecoded React/Next.js apps",
   "type": "module",
@@ -55,7 +55,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/discordwell/vibevariant"
+    "url": "https://github.com/discordwell/vibariant"
   },
   "keywords": [
     "ab-testing",
@@ -63,6 +63,6 @@
     "react",
     "nextjs",
     "bayesian",
-    "vibevariant"
+    "vibariant"
   ]
 }

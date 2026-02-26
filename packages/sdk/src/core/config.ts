@@ -1,4 +1,4 @@
-import type { VibeVariantConfig, BatchingConfig } from '../types/index.js';
+import type { VibariantConfig, BatchingConfig } from '../types/index.js';
 
 export const DEFAULT_BATCHING: BatchingConfig = {
   maxSize: 10,
@@ -7,7 +7,7 @@ export const DEFAULT_BATCHING: BatchingConfig = {
 };
 
 export const DEFAULT_CONFIG = {
-  apiHost: 'https://api.vibevariant.com',
+  apiHost: 'https://api.vibariant.com',
   autoTrack: true,
   autoGoals: true,
   debug: false,
@@ -28,9 +28,9 @@ export interface ResolvedConfig {
  * Merge user-supplied config with defaults.
  * Throws if projectToken is missing.
  */
-export function applyDefaults(config: VibeVariantConfig): ResolvedConfig {
+export function applyDefaults(config: VibariantConfig): ResolvedConfig {
   if (!config.projectToken) {
-    throw new Error('[VibeVariant] projectToken is required');
+    throw new Error('[Vibariant] projectToken is required');
   }
 
   return {

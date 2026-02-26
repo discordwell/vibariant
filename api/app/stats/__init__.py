@@ -1,4 +1,4 @@
-"""VibeVariant Bayesian statistics engine.
+"""Vibariant Bayesian statistics engine.
 
 Public API:
 - BetaBinomial: Conjugate Beta-Binomial model for conversion rate estimation

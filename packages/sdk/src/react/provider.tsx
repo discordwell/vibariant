@@ -1,46 +1,46 @@
 import React, { createContext, useEffect, useRef, useState } from 'react';
-import type { VibeVariantConfig } from '../types/index.js';
-import { VibeVariant } from '../core/client.js';
+import type { VibariantConfig } from '../types/index.js';
+import { Vibariant } from '../core/client.js';
 
-export interface VibeVariantContextValue {
-  client: VibeVariant | null;
+export interface VibariantContextValue {
+  client: Vibariant | null;
   ready: boolean;
 }
 
-export const VibeVariantContext = createContext<VibeVariantContextValue>({
+export const VibariantContext = createContext<VibariantContextValue>({
   client: null,
   ready: false,
 });
 
-export interface VibeVariantProviderProps {
-  config: VibeVariantConfig;
+export interface VibariantProviderProps {
+  config: VibariantConfig;
   children: React.ReactNode;
 }
 
 /**
- * VibeVariantProvider: creates and initializes the VibeVariant client,
+ * VibariantProvider: creates and initializes the Vibariant client,
  * providing it to all child components via React context.
  *
  * Usage:
  * ```tsx
- * <VibeVariantProvider config={{ projectToken: 'vv_proj_xxx' }}>
+ * <VibariantProvider config={{ projectToken: 'vv_proj_xxx' }}>
  *   <App />
- * </VibeVariantProvider>
+ * </VibariantProvider>
  * ```
  */
-export function VibeVariantProvider({ config, children }: VibeVariantProviderProps) {
-  const clientRef = useRef<VibeVariant | null>(null);
+export function VibariantProvider({ config, children }: VibariantProviderProps) {
+  const clientRef = useRef<Vibariant | null>(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const client = new VibeVariant(config);
+    const client = new Vibariant(config);
     clientRef.current = client;
 
     client.init().then(() => {
       setReady(true);
     }).catch((err) => {
       if (config.debug) {
-        console.error('[VibeVariant] Init failed:', err);
+        console.error('[Vibariant] Init failed:', err);
       }
       // Still set ready so the app doesn't hang — local assignments will work
       setReady(true);
@@ -55,8 +55,8 @@ export function VibeVariantProvider({ config, children }: VibeVariantProviderPro
   }, [config.projectToken]);
 
   return (
-    <VibeVariantContext.Provider value={{ client: clientRef.current, ready }}>
+    <VibariantContext.Provider value={{ client: clientRef.current, ready }}>
       {children}
-    </VibeVariantContext.Provider>
+    </VibariantContext.Provider>
   );
 }

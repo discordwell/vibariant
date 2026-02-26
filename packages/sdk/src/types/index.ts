@@ -11,10 +11,10 @@ export interface BatchingConfig {
   useSendBeacon: boolean;
 }
 
-export interface VibeVariantConfig {
+export interface VibariantConfig {
   /** Public project token (vv_proj_xxx). Required. */
   projectToken: string;
-  /** API host for event ingestion and experiment fetching. Default: "https://api.vibevariant.com" */
+  /** API host for event ingestion and experiment fetching. Default: "https://api.vibariant.com" */
   apiHost?: string;
   /** Automatically track clicks, scrolls, forms, and navigation. Default: true */
   autoTrack?: boolean;

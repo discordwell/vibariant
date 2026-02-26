@@ -1,6 +1,6 @@
-const TOKEN_KEY = "vibevariant_token";
-const USER_KEY = "vibevariant_user";
-const PROJECT_KEY = "vibevariant_project";
+const TOKEN_KEY = "vibariant_token";
+const USER_KEY = "vibariant_user";
+const PROJECT_KEY = "vibariant_project";
 
 export interface User {
   id: string;

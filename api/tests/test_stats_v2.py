@@ -19,7 +19,7 @@ import math
 import numpy as np
 import pytest
 
-sys.path.insert(0, "/Users/discordwell/Projects/vibevariant/api")
+sys.path.insert(0, "/Users/discordwell/Projects/vibariant/api")
 
 from app.stats.bayesian import BetaBinomial, hdi_from_samples
 from app.stats.bandits import ThompsonSampler, TopTwoThompsonSampler

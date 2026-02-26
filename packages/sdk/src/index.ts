@@ -1,9 +1,9 @@
 // Core client
-export { VibeVariant } from './core/client.js';
+export { Vibariant } from './core/client.js';
 
 // Types
 export type {
-  VibeVariantConfig,
+  VibariantConfig,
   BatchingConfig,
   Experiment,
   VariantAssignment,

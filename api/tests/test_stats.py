@@ -1,4 +1,4 @@
-"""Comprehensive tests for the VibeVariant Bayesian stats engine.
+"""Comprehensive tests for the Vibariant Bayesian stats engine.
 
 Tests cover:
 - BetaBinomial with known inputs (1 success in 50 trials, 0 in 50, etc.)
@@ -14,7 +14,7 @@ import sys
 import numpy as np
 import pytest
 
-sys.path.insert(0, "/Users/discordwell/Projects/vibevariant/api")
+sys.path.insert(0, "/Users/discordwell/Projects/vibariant/api")
 
 from app.stats.bayesian import BetaBinomial
 from app.stats.bandits import ThompsonSampler

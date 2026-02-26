@@ -11,9 +11,9 @@
 ## 2026-02-26T11:10Z — Phase 5 COMPLETE: deployed to OVH VPS
 - All review fixes committed and pushed (25a470a, 0cfe60f)
 - Docker images built on VPS, all 3 containers running (db healthy, api 8090, dashboard 3002)
-- Kamal proxy routes added: vibevariant.com → dashboard, api.vibevariant.com → API
+- Kamal proxy routes added: vibariant.com → dashboard, api.vibariant.com → API
 - TLS auto-provisioned via Let's Encrypt (will work once DNS is pointed)
-- Pending: register vibevariant.com domain, point DNS to 54.37.226.6 (A records for @, www, api)
+- Pending: register vibariant.com domain, point DNS to 54.37.226.6 (A records for @, www, api)
 - Pending: GitHub OAuth app setup (fill GITHUB_CLIENT_ID/SECRET in .env)
 
 ## 2026-02-26T10:15Z — Phase 5 review fixes + Suspense boundary fix
@@ -36,7 +36,7 @@ Default port is 8000. Docker compose exposes via API_PORT env var (default 8000)
 Dashboard api.ts defaults to http://localhost:8000.
 
 ## Local PostgreSQL setup
-Using local PG (not Docker) at localhost:5432. Database: vibevariant, user: vibevariant, password: localdev.
+Using local PG (not Docker) at localhost:5432. Database: vibariant, user: vibariant, password: localdev.
 PostgreSQL binary at /opt/homebrew/Cellar/postgresql@16/16.11_1/bin/psql.
 
 ## Python dependencies

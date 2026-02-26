@@ -1,9 +1,9 @@
-# VibeVariant
+# Vibariant
 
 AB testing SaaS for vibecoded apps. Bayesian stats + bandits for small sample sizes.
 
 ## Project Structure
-- `packages/sdk/` — TypeScript SDK (@vibevariant/sdk), React bindings
+- `packages/sdk/` — TypeScript SDK (@vibariant/sdk), React bindings
 - `api/` — FastAPI Python backend, stats engine, auth
 - `dashboard/` — Next.js 15 dashboard
 

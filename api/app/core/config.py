@@ -2,10 +2,10 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    PROJECT_NAME: str = "VibeVariant"
+    PROJECT_NAME: str = "Vibariant"
     API_V1_PREFIX: str = "/api/v1"
 
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/vibevariant"
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/vibariant"
     SECRET_KEY: str = "change-me-in-production"
 
     # Auth

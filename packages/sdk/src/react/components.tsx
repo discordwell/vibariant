@@ -38,7 +38,7 @@ export function Experiment({ name, children }: ExperimentProps) {
 
   if (variantKeys.length === 0) {
     if (typeof globalThis !== 'undefined' && (globalThis as Record<string, unknown>).__DEV__) {
-      console.warn(`[VibeVariant] <Experiment name="${name}"> has no variant children`);
+      console.warn(`[Vibariant] <Experiment name="${name}"> has no variant children`);
     }
     return null;
   }

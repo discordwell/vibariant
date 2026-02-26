@@ -43,7 +43,7 @@ export default function LoginPage() {
       "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZXYtdXNlciIsImV4cCI6OTk5OTk5OTk5OX0.mock";
     const mockUser: User = {
       id: "dev-user",
-      email: "dev@vibevariant.com",
+      email: "dev@vibariant.com",
       name: "Dev User",
     };
     setToken(mockToken);
@@ -73,8 +73,8 @@ export default function LoginPage() {
         {/* Logo / Brand */}
         <div className="text-center mb-10">
           <h1 className="text-3xl font-bold tracking-tight">
-            <span className="text-violet-400">Vibe</span>
-            <span className="text-zinc-100">Variant</span>
+            <span className="text-violet-400">Vib</span>
+            <span className="text-zinc-100">ariant</span>
           </h1>
           <p className="text-zinc-500 mt-2 text-sm">
             AB testing that understands your product

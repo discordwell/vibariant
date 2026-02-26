@@ -1,5 +1,5 @@
 import type {
-  VibeVariantConfig,
+  VibariantConfig,
   Experiment,
   VariantAssignment,
   TrackedEvent,
@@ -17,7 +17,7 @@ import { EventBatcher } from './batch.js';
 import { initAllTrackers, teardownAllTrackers } from '../tracking/index.js';
 import { GoalDetector } from '../goals/index.js';
 
-export class VibeVariant {
+export class Vibariant {
   private config: ResolvedConfig;
   private visitorId = '';
   private sessionId = '';
@@ -28,7 +28,7 @@ export class VibeVariant {
   private initialized = false;
   private trackingTeardown: (() => void) | null = null;
 
-  constructor(config: VibeVariantConfig) {
+  constructor(config: VibariantConfig) {
     this.config = applyDefaults(config);
   }
 
@@ -320,7 +320,7 @@ export class VibeVariant {
    */
   private log(message: string): void {
     if (this.config.debug) {
-      console.debug(`[VibeVariant] ${message}`);
+      console.debug(`[Vibariant] ${message}`);
     }
   }
 }

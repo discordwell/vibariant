@@ -1,19 +1,19 @@
 import { useContext, useMemo, useCallback } from 'react';
 import type { VariantAssignment, EventType, EventPayload } from '../types/index.js';
-import { VibeVariantContext } from './provider.js';
+import { VibariantContext } from './provider.js';
 
 /**
- * Access the raw VibeVariant client and ready state.
+ * Access the raw Vibariant client and ready state.
  *
  * Usage:
  * ```tsx
- * const { client, ready } = useVibeVariant();
+ * const { client, ready } = useVibariant();
  * ```
  */
-export function useVibeVariant() {
-  const ctx = useContext(VibeVariantContext);
+export function useVibariant() {
+  const ctx = useContext(VibariantContext);
   if (!ctx.client && typeof window !== 'undefined') {
-    console.warn('[VibeVariant] useVibeVariant() called outside <VibeVariantProvider>');
+    console.warn('[Vibariant] useVibariant() called outside <VibariantProvider>');
   }
   return ctx;
 }
@@ -41,7 +41,7 @@ export function useVariant(
   experimentKey: string,
   variants: string[],
 ): { variant: string; assignment: VariantAssignment | null } {
-  const { client } = useContext(VibeVariantContext);
+  const { client } = useContext(VibariantContext);
 
   const assignment = useMemo(() => {
     if (!client) return null;
@@ -68,12 +68,12 @@ export function useVariant(
  * ```
  */
 export function useTrack(): (type: EventType, payload?: EventPayload) => void {
-  const { client } = useContext(VibeVariantContext);
+  const { client } = useContext(VibariantContext);
 
   return useCallback(
     (type: EventType, payload: EventPayload = {}) => {
       if (!client) {
-        console.warn('[VibeVariant] useTrack() called before client is ready');
+        console.warn('[Vibariant] useTrack() called before client is ready');
         return;
       }
       client.track(type, payload);
