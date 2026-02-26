@@ -1,36 +1,94 @@
+"""Thompson Sampling multi-armed bandit for dynamic traffic allocation.
+
+Each arm is represented by a ``BetaBinomial`` posterior.  On each round
+Thompson Sampling draws a sample from every arm and picks the highest.
+Repeated over many rounds this naturally produces traffic allocations
+that balance exploration and exploitation.
+"""
+
+from __future__ import annotations
+
 import numpy as np
+
+from app.stats.bayesian import BetaBinomial, draw_sample_matrix
 
 
 class ThompsonSampler:
-    """Thompson Sampling multi-armed bandit for dynamic traffic allocation.
+    """Thompson Sampling bandit backed by BetaBinomial posteriors.
 
-    Each arm maintains a Beta posterior. On each sample, we draw from each
-    arm's posterior and allocate traffic proportionally to win probability.
+    Parameters
+    ----------
+    models : list[BetaBinomial]
+        One posterior model per variant, in variant-index order.
     """
 
-    def __init__(self, variant_keys: list[str]) -> None:
-        self.variant_keys = variant_keys
-        # Beta(1, 1) uniform priors
-        self.alphas = {k: 1.0 for k in variant_keys}
-        self.betas = {k: 1.0 for k in variant_keys}
+    def __init__(self, models: list[BetaBinomial]) -> None:
+        if not models:
+            raise ValueError("Must provide at least one model")
+        self.models = models
 
-    def update(self, variant_key: str, successes: int, failures: int) -> None:
-        """Update the posterior for a variant with observed outcomes."""
-        self.alphas[variant_key] += successes
-        self.betas[variant_key] += failures
+    # ------------------------------------------------------------------
+    # Single-draw helpers
+    # ------------------------------------------------------------------
 
-    def sample(self, rng: np.random.Generator | None = None) -> str:
-        """Draw from each arm's posterior and return the winning variant key."""
-        rng = rng or np.random.default_rng()
-        draws = {k: rng.beta(self.alphas[k], self.betas[k]) for k in self.variant_keys}
-        return max(draws, key=draws.get)  # type: ignore[arg-type]
+    def sample_best(self, seed: int | None = None) -> int:
+        """Draw one sample from each arm's posterior; return index of the highest.
 
-    def get_allocation(self, n_simulations: int = 10_000) -> dict[str, float]:
-        """Compute traffic allocation proportions via repeated Thompson samples."""
-        rng = np.random.default_rng(42)
-        wins = {k: 0 for k in self.variant_keys}
-        for _ in range(n_simulations):
-            winner = self.sample(rng)
-            wins[winner] += 1
-        total = sum(wins.values())
-        return {k: wins[k] / total for k in self.variant_keys}
+        Parameters
+        ----------
+        seed : int | None
+            Optional RNG seed for reproducibility.
+
+        Returns
+        -------
+        int
+            Index of the winning variant.
+        """
+        rng = np.random.default_rng(seed)
+        draws = [float(rng.beta(m.alpha, m.beta)) for m in self.models]
+        return int(np.argmax(draws))
+
+    def select_variant(self, seed: int | None = None) -> int:
+        """Alias for ``sample_best`` -- select a single variant via Thompson Sampling.
+
+        This is the method to call in the hot path when assigning a new
+        visitor to a variant.
+
+        Returns
+        -------
+        int
+            Index of the selected variant.
+        """
+        return self.sample_best(seed=seed)
+
+    # ------------------------------------------------------------------
+    # Allocation estimation
+    # ------------------------------------------------------------------
+
+    def get_allocation(self, n_samples: int = 10_000, seed: int = 42) -> list[float]:
+        """Estimate optimal traffic allocation via repeated Thompson draws.
+
+        Runs ``n_samples`` independent rounds of Thompson Sampling and
+        returns the fraction of times each variant wins.  This gives a
+        natural traffic-split recommendation that balances exploration
+        and exploitation.
+
+        Parameters
+        ----------
+        n_samples : int
+            Number of simulation rounds.
+        seed : int
+            RNG seed for reproducibility.
+
+        Returns
+        -------
+        list[float]
+            Allocation fraction per variant, sums to ~1.0.
+        """
+        n_variants = len(self.models)
+
+        # Vectorised: draw (n_samples, n_variants) matrix in one go
+        samples = draw_sample_matrix(self.models, n_samples, seed)
+        winners = np.argmax(samples, axis=1)
+        counts = np.bincount(winners, minlength=n_variants)
+        return (counts / n_samples).tolist()

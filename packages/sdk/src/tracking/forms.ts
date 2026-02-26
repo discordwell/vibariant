@@ -1,8 +1,8 @@
-import type { EventType, EventPayload, FormSubmitPayload, DetectedGoal } from '../types/index.js';
-import { generateSelector } from './clicks.js';
+import type { EventType, EventPayload, FormSubmitPayload } from '../types/index.js';
+import { generateSelector, findMatchingGoal } from './clicks.js';
 
 type TrackFn = (type: EventType, payload: EventPayload) => void;
-type GoalLookupFn = () => DetectedGoal[];
+type GoalLookupFn = () => import('../types/index.js').DetectedGoal[];
 
 /**
  * Extract field names from a form.
@@ -27,34 +27,6 @@ function extractFieldNames(form: HTMLFormElement): string[] {
 }
 
 /**
- * Check if a submitted form matches any detected goal's trigger selector.
- * Returns the matching goal if found, null otherwise.
- */
-function findMatchingFormGoal(form: HTMLFormElement, selector: string, getGoals?: GoalLookupFn): DetectedGoal | null {
-  if (!getGoals) return null;
-
-  const goals = getGoals();
-  for (const goal of goals) {
-    if (goal.trigger.type !== 'form_submit') continue;
-
-    // Match by trigger selector
-    if (goal.trigger.selector) {
-      try {
-        if (form.matches(goal.trigger.selector) || selector === goal.trigger.selector) {
-          return goal;
-        }
-      } catch {
-        if (selector === goal.trigger.selector) {
-          return goal;
-        }
-      }
-    }
-  }
-
-  return null;
-}
-
-/**
  * Initialize form submission tracking.
  * Listens for submit events on all forms and tracks field names (never values).
  * When a form submission matches a detected goal, includes goalId in the payload
@@ -66,7 +38,7 @@ export function initFormTracking(track: TrackFn, getGoals?: GoalLookupFn): () =>
     if (!form || form.tagName !== 'FORM') return;
 
     const selector = generateSelector(form);
-    const matchedGoal = findMatchingFormGoal(form, selector, getGoals);
+    const matchedGoal = findMatchingGoal(form, selector, 'form_submit', getGoals);
 
     const payload: FormSubmitPayload & { goalId?: string } = {
       selector,

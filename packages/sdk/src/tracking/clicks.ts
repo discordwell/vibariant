@@ -85,15 +85,20 @@ function truncateText(text: string, maxLen = 100): string {
 }
 
 /**
- * Check if a clicked element matches any detected goal's trigger selector.
- * Returns the matching goal if found, null otherwise.
+ * Check if an element matches any detected goal's trigger selector for the given trigger type.
+ * Shared between click and form tracking.
  */
-function findMatchingGoal(element: Element, selector: string, getGoals?: GoalLookupFn): DetectedGoal | null {
+export function findMatchingGoal(
+  element: Element,
+  selector: string,
+  triggerType: 'click' | 'form_submit',
+  getGoals?: GoalLookupFn,
+): DetectedGoal | null {
   if (!getGoals) return null;
 
   const goals = getGoals();
   for (const goal of goals) {
-    if (goal.trigger.type !== 'click') continue;
+    if (goal.trigger.type !== triggerType) continue;
 
     // Match by trigger selector
     if (goal.trigger.selector) {
@@ -128,7 +133,7 @@ export function initClickTracking(track: TrackFn, getGoals?: GoalLookupFn): () =
     const interactive = target.closest('a, button, [role="button"], input[type="submit"], [data-vv-track]') ?? target;
 
     const selector = generateSelector(interactive);
-    const matchedGoal = findMatchingGoal(interactive, selector, getGoals);
+    const matchedGoal = findMatchingGoal(interactive, selector, 'click', getGoals);
 
     const payload: ClickPayload & { goalId?: string } = {
       selector,
