@@ -91,3 +91,39 @@ export function logout(): void {
     window.location.href = "/login";
   }
 }
+
+/**
+ * Shared post-auth flow: store credentials, fetch project, return for redirect.
+ * Used by both GitHub OAuth callback and magic link verify pages.
+ */
+export async function completeLogin(result: {
+  access_token: string;
+  user_id: string;
+  email: string;
+}): Promise<void> {
+  // Dynamic import to avoid circular dependency (api.ts imports from auth.ts)
+  const { api } = await import("./api");
+
+  setToken(result.access_token);
+  const user: User = {
+    id: result.user_id,
+    email: result.email,
+    name: result.email.split("@")[0],
+  };
+  setUser(user);
+
+  // Fetch and cache project
+  try {
+    const projects = await api.getProjects();
+    if (projects.length > 0) {
+      setProject({
+        id: projects[0].id,
+        name: projects[0].name,
+        project_token: projects[0].project_token,
+        api_key: projects[0].api_key,
+      });
+    }
+  } catch {
+    // useProject hook will retry on dashboard load
+  }
+}

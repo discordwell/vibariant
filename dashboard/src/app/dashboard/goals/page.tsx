@@ -55,7 +55,10 @@ export default function GoalsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchGoals = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId) {
+      if (!projectLoading) setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -67,7 +70,7 @@ export default function GoalsPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, projectLoading]);
 
   useEffect(() => {
     fetchGoals();

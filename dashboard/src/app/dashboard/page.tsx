@@ -14,7 +14,10 @@ export default function DashboardHome() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!projectId) return;
+    if (!projectId) {
+      if (!projectLoading) setLoading(false);
+      return;
+    }
 
     let cancelled = false;
     (async () => {
@@ -32,7 +35,7 @@ export default function DashboardHome() {
     })();
 
     return () => { cancelled = true; };
-  }, [projectId]);
+  }, [projectId, projectLoading]);
 
   const isLoading = projectLoading || loading;
   const displayError = projectError || error;

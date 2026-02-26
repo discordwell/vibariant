@@ -33,7 +33,10 @@ export default function ExperimentsPage() {
   const [newTraffic, setNewTraffic] = useState("100");
 
   const fetchExperiments = useCallback(async () => {
-    if (!projectId) return;
+    if (!projectId) {
+      if (!projectLoading) setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -45,7 +48,7 @@ export default function ExperimentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, projectLoading]);
 
   useEffect(() => {
     fetchExperiments();

@@ -15,7 +15,7 @@ export default function LoginPage() {
 
   const handleGithubLogin = () => {
     const clientId = process.env.NEXT_PUBLIC_GITHUB_CLIENT_ID;
-    const redirectUri = `${window.location.origin}/api/auth/github/callback`;
+    const redirectUri = `${window.location.origin}/auth/github/callback`;
     window.location.href = `https://github.com/login/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&scope=user:email`;
   };
 

@@ -38,8 +38,8 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     ports:
       - "${DASHBOARD_PORT:-3000}:3000"
-    environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    # NEXT_PUBLIC_API_URL is baked at build time via the args block above.
+    # Changing it at runtime has no effect — rebuild the image instead.
     depends_on:
       - api
     restart: unless-stopped

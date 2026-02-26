@@ -1,7 +1,7 @@
 import { getToken, logout } from "./auth";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8001";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 const API_PREFIX = "/api/v1";
 
@@ -19,6 +19,7 @@ interface ApiError {
 
 class ApiClient {
   private baseUrl: string;
+  private loggingOut = false;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
@@ -54,7 +55,10 @@ class ApiClient {
     const response = await fetch(`${this.baseUrl}${endpoint}`, config);
 
     if (response.status === 401) {
-      logout();
+      if (!this.loggingOut) {
+        this.loggingOut = true;
+        logout();
+      }
       throw { detail: "Session expired", status: 401 } as ApiError;
     }
 
