@@ -42,6 +42,14 @@ Vibariant is an AB testing SaaS purpose-built for vibecoding. It provides meanin
 │  - Event batching (fetch + sendBeacon)       │
 │  - ~8kb gzipped full bundle                  │
 └──────────────────────────────────────────────┘
+
+┌──────────────────────┐  ┌───────────────────────┐
+│   CLI (@vibariant/cli)│  │  MCP (@vibariant/mcp)│
+│  - One-click setup   │  │  - Claude Code tools  │
+│  - Experiment CRUD   │──│  - Same auth/config   │
+│  - Device-code auth  │  │  - Code generation    │
+│  npx @vibariant/cli  │  │  npx @vibariant/mcp   │
+└──────────────────────┘  └───────────────────────┘
 ```
 
 ## Tech Stack
@@ -53,7 +61,9 @@ Vibariant is an AB testing SaaS purpose-built for vibecoding. It provides meanin
 | Stats | scipy, numpy (conjugate Beta-Binomial, no PyMC needed) |
 | Database | PostgreSQL 16 |
 | SDK | TypeScript, tsup (ESM + CJS) |
-| Auth | GitHub OAuth + email magic links, JWT |
+| CLI | TypeScript, Commander.js, Inquirer |
+| MCP | TypeScript, @modelcontextprotocol/sdk |
+| Auth | GitHub OAuth + email magic links + device-code flow, JWT |
 | Deploy | Docker Compose on OVH VPS, Kamal proxy |
 
 ## Key Design Decisions
@@ -83,6 +93,54 @@ Both client (SDK) and server use FNV-1a hashing of `visitorId:experimentKey` for
 ## Auth Model
 - **Project token** (`vv_proj_xxx`): Public, client-side safe. Write events + read own assignments only.
 - **API key** (`vv_sk_xxx`): Secret, server-side. Full API access for dashboard and management.
+
+## CLI (`@vibariant/cli`)
+
+Full-featured CLI for one-click setup and experiment management. Lives in `packages/cli/`.
+
+### One-Click Setup
+```bash
+npx @vibariant/cli init
+```
+Handles: Docker backend startup, magic link auth, project creation, SDK installation, framework-detected code generation, and first experiment creation. Supports `--yes` for non-interactive mode.
+
+### Commands
+- `vibariant init` — Full setup wizard
+- `vibariant auth login|logout|status` — Magic link authentication
+- `vibariant projects list|create|show` — Project CRUD
+- `vibariant experiments list|create|update|delete|results` — Experiment CRUD + stats
+- `vibariant goals list|confirm` — Goal management
+- `vibariant status` — Running experiments overview
+- `vibariant config get|set` — CLI configuration
+- `vibariant mcp` — Install MCP server config for Claude Code
+
+All commands support `--api-url` and `--json` flags for scripting.
+
+### CLI Auth Flow
+Device-code flow similar to GitHub CLI: CLI gets a device_code, user verifies via email magic link, CLI polls until authorized. In dev mode (default SECRET_KEY), auto-completes instantly without email.
+
+## MCP Server (`@vibariant/mcp`)
+
+Model Context Protocol server for AI-assisted experiment management. Lives in `packages/mcp/`.
+
+### Tools
+| Tool | Description |
+|------|-------------|
+| `vibariant_auth` | Check auth status |
+| `vibariant_list_projects` | List projects |
+| `vibariant_create_project` | Create project |
+| `vibariant_create_experiment` | Create + start experiment |
+| `vibariant_list_experiments` | List experiments |
+| `vibariant_get_results` | Get stats + recommendation |
+| `vibariant_update_experiment` | Update status/config |
+| `vibariant_generate_code` | Generate SDK integration code |
+
+### Setup
+```bash
+npx @vibariant/cli mcp  # Writes to .claude/settings.json
+```
+
+Reads auth from `~/.vibariant/config.json` (shared with CLI).
 
 ## Deployment
 Docker Compose on OVH VPS (54.37.226.6) behind Kamal proxy with auto-SSL via Let's Encrypt.

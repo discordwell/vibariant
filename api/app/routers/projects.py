@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +26,10 @@ class ProjectOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ProjectCreate(BaseModel):
+    name: str
+
+
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
@@ -38,3 +42,17 @@ async def list_projects(
     """List all projects for the authenticated user."""
     result = await db.execute(select(Project).where(Project.user_id == user.id))
     return result.scalars().all()
+
+
+@router.post("/projects", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
+async def create_project(
+    body: ProjectCreate,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> ProjectOut:
+    """Create a new project for the authenticated user."""
+    project = Project(name=body.name, user_id=user.id)
+    db.add(project)
+    await db.flush()
+    await db.refresh(project)
+    return project
