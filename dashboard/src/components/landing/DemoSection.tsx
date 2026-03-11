@@ -144,28 +144,44 @@ export default function DemoSection() {
         className="absolute inset-0 pointer-events-none overflow-hidden"
         aria-hidden="true"
       >
-        <svg
-          className="absolute left-[2%] top-[15%] w-[10%] h-[20%] hidden md:block"
-          viewBox="0 0 100 60"
+        <div
+          className="absolute inset-0 hidden md:block"
+          data-bifurcation-target="demo-left-decorations"
+          data-bifurcation-side="blue"
         >
-          <rect x="10" y="10" width="6" height="6" fill="#60a5fa" opacity="0.08" />
-          <rect x="38" y="28" width="6" height="6" fill="#3b82f6" opacity="0.06" />
-          <rect x="62" y="5" width="6" height="6" fill="#60a5fa" opacity="0.09" />
-          <rect x="82" y="42" width="6" height="6" fill="#60a5fa" opacity="0.07" />
-        </svg>
-        <svg
-          className="absolute right-[3%] top-[10%] w-[12%] h-[20%] hidden md:block"
-          viewBox="0 0 200 200"
-          fill="none"
+          <svg
+            className="absolute left-[2%] top-[15%] w-[10%] h-[20%]"
+            data-bifurcation-target="demo-left-decoration"
+            data-bifurcation-side="blue"
+            viewBox="0 0 100 60"
+          >
+            <rect x="10" y="10" width="6" height="6" fill="#60a5fa" opacity="0.08" />
+            <rect x="38" y="28" width="6" height="6" fill="#3b82f6" opacity="0.06" />
+            <rect x="62" y="5" width="6" height="6" fill="#60a5fa" opacity="0.09" />
+            <rect x="82" y="42" width="6" height="6" fill="#60a5fa" opacity="0.07" />
+          </svg>
+        </div>
+        <div
+          className="absolute inset-0 hidden md:block"
+          data-bifurcation-target="demo-right-decorations"
+          data-bifurcation-side="orange"
         >
-          <path
-            d="M100,100 C100,68 135,48 165,60 C195,72 205,115 182,145 C159,175 115,180 85,158 C55,136 50,92 72,62"
-            stroke="#fb923c"
-            strokeWidth="1.5"
-            opacity="0.07"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
+          <svg
+            className="absolute right-[3%] top-[10%] w-[12%] h-[20%]"
+            data-bifurcation-target="demo-right-decoration"
+            data-bifurcation-side="orange"
+            viewBox="0 0 200 200"
+            fill="none"
+          >
+            <path
+              d="M100,100 C100,68 135,48 165,60 C195,72 205,115 182,145 C159,175 115,180 85,158 C55,136 50,92 72,62"
+              stroke="#fb923c"
+              strokeWidth="1.5"
+              opacity="0.07"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        </div>
       </div>
 
       <div className="max-w-4xl mx-auto">
@@ -182,7 +198,11 @@ export default function DemoSection() {
         {/* Variant cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
           {/* Variant A */}
-          <div className="bg-zinc-850 border border-blue-500/20 rounded-xl p-5">
+          <div
+            data-bifurcation-target="demo-variant-a-card"
+            data-bifurcation-side="blue"
+            className="bg-zinc-850 border border-blue-500/20 rounded-xl p-5"
+          >
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
                 Variant A
@@ -215,7 +235,11 @@ export default function DemoSection() {
           </div>
 
           {/* Variant B */}
-          <div className="bg-zinc-850 border border-orange-500/20 rounded-xl p-5">
+          <div
+            data-bifurcation-target="demo-variant-b-card"
+            data-bifurcation-side="orange"
+            className="bg-zinc-850 border border-orange-500/20 rounded-xl p-5"
+          >
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
                 Variant B

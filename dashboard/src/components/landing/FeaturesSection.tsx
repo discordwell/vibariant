@@ -114,59 +114,75 @@ export default function FeaturesSection() {
         className="absolute inset-0 pointer-events-none overflow-hidden"
         aria-hidden="true"
       >
-        {/* Geometric: circuit path (left) */}
-        <svg
-          className="absolute left-[3%] top-[10%] w-[14%] h-[30%] hidden md:block"
-          viewBox="0 0 200 150"
-          fill="none"
+        <div
+          className="absolute inset-0 hidden md:block"
+          data-bifurcation-target="features-left-decorations"
+          data-bifurcation-side="blue"
         >
-          <path
-            d="M10,130 L10,80 L80,80 L80,40 L150,40 L150,10"
-            stroke="#60a5fa"
-            strokeWidth="1.5"
-            opacity="0.08"
-            vectorEffect="non-scaling-stroke"
-          />
-          <rect
-            x="6"
-            y="126"
-            width="8"
-            height="8"
-            fill="#60a5fa"
-            opacity="0.1"
-          />
-          <rect
-            x="76"
-            y="76"
-            width="8"
-            height="8"
-            fill="#60a5fa"
-            opacity="0.1"
-          />
-          <rect
-            x="146"
-            y="6"
-            width="8"
-            height="8"
-            fill="#60a5fa"
-            opacity="0.1"
-          />
-        </svg>
+          {/* Geometric: circuit path (left) */}
+          <svg
+            className="absolute left-[3%] top-[10%] w-[14%] h-[30%]"
+            data-bifurcation-target="features-left-decoration"
+            data-bifurcation-side="blue"
+            viewBox="0 0 200 150"
+            fill="none"
+          >
+            <path
+              d="M10,130 L10,80 L80,80 L80,40 L150,40 L150,10"
+              stroke="#60a5fa"
+              strokeWidth="1.5"
+              opacity="0.08"
+              vectorEffect="non-scaling-stroke"
+            />
+            <rect
+              x="6"
+              y="126"
+              width="8"
+              height="8"
+              fill="#60a5fa"
+              opacity="0.1"
+            />
+            <rect
+              x="76"
+              y="76"
+              width="8"
+              height="8"
+              fill="#60a5fa"
+              opacity="0.1"
+            />
+            <rect
+              x="146"
+              y="6"
+              width="8"
+              height="8"
+              fill="#60a5fa"
+              opacity="0.1"
+            />
+          </svg>
+        </div>
 
-        {/* Organic: sine wave (right) */}
-        <svg
-          className="absolute right-[3%] top-[50%] w-[16%] h-[12%] hidden md:block"
-          viewBox="0 0 200 60"
-          fill="none"
+        <div
+          className="absolute inset-0 hidden md:block"
+          data-bifurcation-target="features-right-decorations"
+          data-bifurcation-side="orange"
         >
-          <path
-            d="M0,30 C25,8 50,52 75,30 C100,8 125,52 150,30 C175,8 200,52 200,30"
-            stroke="#fb923c"
-            strokeWidth="1.5"
-            opacity="0.08"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
+          {/* Organic: sine wave (right) */}
+          <svg
+            className="absolute right-[3%] top-[50%] w-[16%] h-[12%]"
+            data-bifurcation-target="features-right-decoration"
+            data-bifurcation-side="orange"
+            viewBox="0 0 200 60"
+            fill="none"
+          >
+            <path
+              d="M0,30 C25,8 50,52 75,30 C100,8 125,52 150,30 C175,8 200,52 200,30"
+              stroke="#fb923c"
+              strokeWidth="1.5"
+              opacity="0.08"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        </div>
       </div>
 
       <div className="max-w-5xl mx-auto">
@@ -180,9 +196,11 @@ export default function FeaturesSection() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {features.map((feature) => (
+          {features.map((feature, index) => (
             <div
               key={feature.title}
+              data-bifurcation-target={`feature-card-${index + 1}`}
+              data-bifurcation-side={feature.side}
               className={`bg-zinc-850 border rounded-xl p-6 transition-colors hover:bg-zinc-800/50 ${
                 feature.side === "blue"
                   ? "border-blue-500/10 hover:border-blue-500/20"

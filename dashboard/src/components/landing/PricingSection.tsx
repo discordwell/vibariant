@@ -3,6 +3,7 @@ import Link from "next/link";
 const tiers = [
   {
     name: "Free",
+    side: "blue" as const,
     price: "$0",
     period: "forever",
     description: "Kick the tires. No credit card.",
@@ -18,6 +19,7 @@ const tiers = [
   },
   {
     name: "Pro",
+    side: "bridge" as const,
     price: "$29",
     period: "/mo",
     description: "For solo devs and small teams shipping fast.",
@@ -34,6 +36,7 @@ const tiers = [
   },
   {
     name: "Team",
+    side: "orange" as const,
     price: "$99",
     period: "/mo",
     description: "Collaborate, control, and scale.",
@@ -58,43 +61,59 @@ export default function PricingSection() {
         className="absolute inset-0 pointer-events-none overflow-hidden"
         aria-hidden="true"
       >
-        <svg
-          className="absolute left-[4%] bottom-[15%] w-[14%] h-[18%] hidden md:block"
-          viewBox="0 0 200 80"
-          fill="none"
+        <div
+          className="absolute inset-0 hidden md:block"
+          data-bifurcation-target="pricing-left-decorations"
+          data-bifurcation-side="blue"
         >
-          <polyline
-            points="0,45 20,45 20,20 45,20 45,40 70,40 70,10 95,10 95,50 120,50 120,25 145,25 145,55 180,55"
-            stroke="#3b82f6"
-            strokeWidth="1.5"
-            opacity="0.06"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
-        <svg
-          className="absolute right-[4%] top-[20%] w-[14%] h-[30%] hidden md:block"
-          viewBox="0 0 200 200"
-          fill="none"
+          <svg
+            className="absolute left-[4%] bottom-[15%] w-[14%] h-[18%]"
+            data-bifurcation-target="pricing-left-decoration"
+            data-bifurcation-side="blue"
+            viewBox="0 0 200 80"
+            fill="none"
+          >
+            <polyline
+              points="0,45 20,45 20,20 45,20 45,40 70,40 70,10 95,10 95,50 120,50 120,25 145,25 145,55 180,55"
+              stroke="#3b82f6"
+              strokeWidth="1.5"
+              opacity="0.06"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        </div>
+        <div
+          className="absolute inset-0 hidden md:block"
+          data-bifurcation-target="pricing-right-decorations"
+          data-bifurcation-side="orange"
         >
-          <circle
-            cx="100"
-            cy="100"
-            r="80"
-            stroke="#fb923c"
-            strokeWidth="1"
-            opacity="0.05"
-            vectorEffect="non-scaling-stroke"
-          />
-          <circle
-            cx="100"
-            cy="100"
-            r="50"
-            stroke="#fb923c"
-            strokeWidth="1"
-            opacity="0.04"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
+          <svg
+            className="absolute right-[4%] top-[20%] w-[14%] h-[30%]"
+            data-bifurcation-target="pricing-right-decoration"
+            data-bifurcation-side="orange"
+            viewBox="0 0 200 200"
+            fill="none"
+          >
+            <circle
+              cx="100"
+              cy="100"
+              r="80"
+              stroke="#fb923c"
+              strokeWidth="1"
+              opacity="0.05"
+              vectorEffect="non-scaling-stroke"
+            />
+            <circle
+              cx="100"
+              cy="100"
+              r="50"
+              stroke="#fb923c"
+              strokeWidth="1"
+              opacity="0.04"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        </div>
       </div>
 
       <div className="max-w-5xl mx-auto">
@@ -111,10 +130,16 @@ export default function PricingSection() {
           {tiers.map((tier) => (
             <div
               key={tier.name}
+              data-bifurcation-target={`pricing-${tier.name.toLowerCase()}-tier`}
+              data-bifurcation-side={
+                tier.side === "bridge" ? undefined : tier.side
+              }
               className={`bg-zinc-850 border rounded-xl p-6 flex flex-col ${
-                tier.highlighted
-                  ? "border-orange-500/30 ring-1 ring-orange-500/10"
-                  : "border-zinc-800"
+                tier.side === "blue"
+                  ? "border-blue-500/20 ring-1 ring-blue-500/8 bg-blue-500/[0.03]"
+                  : tier.side === "orange"
+                    ? "border-orange-500/20 ring-1 ring-orange-500/8 bg-orange-500/[0.03]"
+                    : "border-orange-500/30 ring-1 ring-orange-500/10 bg-gradient-to-br from-blue-500/[0.04] via-zinc-850 to-orange-500/[0.06]"
               }`}
             >
               {tier.highlighted && (

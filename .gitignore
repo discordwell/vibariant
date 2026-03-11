@@ -7,6 +7,8 @@ dist/
 *.log
 .cache/
 coverage/
+playwright-report/
+test-results/
 
 # Python
 __pycache__/

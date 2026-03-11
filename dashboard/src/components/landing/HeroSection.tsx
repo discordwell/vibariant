@@ -19,84 +19,100 @@ export default function HeroSection() {
         className="absolute inset-0 pointer-events-none overflow-hidden"
         aria-hidden="true"
       >
-        {/* Geometric: pixel grid (left) */}
-        <svg
-          className="absolute left-[2%] top-[8%] w-[15%] h-[40%] hidden md:block"
-          viewBox="0 0 200 200"
+        <div
+          className="absolute inset-0 hidden md:block"
+          data-bifurcation-target="hero-left-decorations"
+          data-bifurcation-side="blue"
         >
-          <defs>
-            <pattern
-              id="hero-grid"
-              width="20"
-              height="20"
-              patternUnits="userSpaceOnUse"
-            >
-              <rect width="3" height="3" fill="#60a5fa" />
-            </pattern>
-          </defs>
-          <rect
-            width="200"
-            height="200"
-            fill="url(#hero-grid)"
-            opacity="0.06"
-          />
-        </svg>
+          {/* Geometric: pixel grid (left) */}
+          <svg
+            className="absolute left-[2%] top-[8%] w-[15%] h-[40%]"
+            data-bifurcation-target="hero-left-decoration"
+            data-bifurcation-side="blue"
+            viewBox="0 0 200 200"
+          >
+            <defs>
+              <pattern
+                id="hero-grid"
+                width="20"
+                height="20"
+                patternUnits="userSpaceOnUse"
+              >
+                <rect width="3" height="3" fill="#60a5fa" />
+              </pattern>
+            </defs>
+            <rect
+              width="200"
+              height="200"
+              fill="url(#hero-grid)"
+              opacity="0.06"
+            />
+          </svg>
 
-        {/* Geometric: stepped waveform (left) */}
-        <svg
-          className="absolute left-[4%] bottom-[20%] w-[18%] h-[15%] hidden md:block"
-          viewBox="0 0 200 80"
-          fill="none"
-        >
-          <polyline
-            points="0,60 25,60 25,25 50,25 50,45 75,45 75,15 100,15 100,55 125,55 125,35 150,35 150,70 175,70 175,20 200,20"
-            stroke="#60a5fa"
-            strokeWidth="2"
-            opacity="0.1"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
+          {/* Geometric: stepped waveform (left) */}
+          <svg
+            className="absolute left-[4%] bottom-[20%] w-[18%] h-[15%]"
+            viewBox="0 0 200 80"
+            fill="none"
+          >
+            <polyline
+              points="0,60 25,60 25,25 50,25 50,45 75,45 75,15 100,15 100,55 125,55 125,35 150,35 150,70 175,70 175,20 200,20"
+              stroke="#60a5fa"
+              strokeWidth="2"
+              opacity="0.1"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        </div>
 
-        {/* Organic: S-curve (right) */}
-        <svg
-          className="absolute right-[2%] top-[5%] w-[16%] h-[50%] hidden md:block"
-          viewBox="0 0 200 200"
-          fill="none"
+        <div
+          className="absolute inset-0 hidden md:block"
+          data-bifurcation-target="hero-right-decorations"
+          data-bifurcation-side="orange"
         >
-          <path
-            d="M20,185 C60,185 55,15 100,15 C145,15 140,185 180,185"
-            stroke="#fb923c"
-            strokeWidth="2"
-            opacity="0.1"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
+          {/* Organic: S-curve (right) */}
+          <svg
+            className="absolute right-[2%] top-[5%] w-[16%] h-[50%]"
+            data-bifurcation-target="hero-right-decoration"
+            data-bifurcation-side="orange"
+            viewBox="0 0 200 200"
+            fill="none"
+          >
+            <path
+              d="M20,185 C60,185 55,15 100,15 C145,15 140,185 180,185"
+              stroke="#fb923c"
+              strokeWidth="2"
+              opacity="0.1"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
 
-        {/* Organic: circles (right) */}
-        <svg
-          className="absolute right-[6%] bottom-[15%] w-[12%] h-[25%] hidden md:block"
-          viewBox="0 0 200 200"
-          fill="none"
-        >
-          <circle
-            cx="80"
-            cy="100"
-            r="65"
-            stroke="#fb923c"
-            strokeWidth="1.5"
-            opacity="0.07"
-            vectorEffect="non-scaling-stroke"
-          />
-          <circle
-            cx="125"
-            cy="85"
-            r="48"
-            stroke="#fb923c"
-            strokeWidth="1"
-            opacity="0.05"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
+          {/* Organic: circles (right) */}
+          <svg
+            className="absolute right-[6%] bottom-[15%] w-[12%] h-[25%]"
+            viewBox="0 0 200 200"
+            fill="none"
+          >
+            <circle
+              cx="80"
+              cy="100"
+              r="65"
+              stroke="#fb923c"
+              strokeWidth="1.5"
+              opacity="0.07"
+              vectorEffect="non-scaling-stroke"
+            />
+            <circle
+              cx="125"
+              cy="85"
+              r="48"
+              stroke="#fb923c"
+              strokeWidth="1"
+              opacity="0.05"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        </div>
       </div>
 
       {/* Headline */}
@@ -119,12 +135,16 @@ export default function HeroSection() {
         <div className="flex items-center justify-center gap-4 mt-8">
           <Link
             href="/login"
+            data-bifurcation-target="hero-start-cta"
+            data-bifurcation-side="blue"
             className="bg-blue-600 hover:bg-blue-500 text-white font-medium px-6 py-3 rounded-lg transition-all duration-150 text-sm"
           >
             Start Free
           </Link>
           <a
             href="#demo"
+            data-bifurcation-target="hero-watch-cta"
+            data-bifurcation-side="orange"
             className="bg-orange-600 hover:bg-orange-500 text-white font-medium px-6 py-3 rounded-lg transition-all duration-150 text-sm"
           >
             Watch Demo
