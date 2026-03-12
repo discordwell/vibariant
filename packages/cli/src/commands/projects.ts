@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { VibariantAPI } from '../lib/api.js';
 import { requireAuth } from '../lib/auth.js';
 import { getApiUrl } from '../lib/credentials.js';
-import { printTable } from '../lib/format.js';
+import { printTable, jsonOk, jsonError, EXIT } from '../lib/format.js';
 
 export function registerProjectsCommand(program: Command): void {
   const projects = program.command('projects').description('Manage projects');
@@ -21,7 +21,7 @@ export function registerProjectsCommand(program: Command): void {
       const data = await api.listProjects();
 
       if (opts.json) {
-        console.log(JSON.stringify(data, null, 2));
+        jsonOk(data);
         return;
       }
 
@@ -50,7 +50,7 @@ export function registerProjectsCommand(program: Command): void {
       const project = await api.createProject(name);
 
       if (opts.json) {
-        console.log(JSON.stringify(project, null, 2));
+        jsonOk(project);
         return;
       }
 
@@ -75,12 +75,16 @@ export function registerProjectsCommand(program: Command): void {
       const project = projects.find((p) => p.id === id);
 
       if (!project) {
-        console.error(chalk.red(`Project ${id} not found.`));
-        process.exit(1);
+        if (opts.json) {
+          jsonError(`Project ${id} not found`, EXIT.NOT_FOUND);
+        } else {
+          process.stderr.write(chalk.red(`Project ${id} not found.\n`));
+          process.exit(EXIT.NOT_FOUND);
+        }
       }
 
       if (opts.json) {
-        console.log(JSON.stringify(project, null, 2));
+        jsonOk(project);
         return;
       }
 

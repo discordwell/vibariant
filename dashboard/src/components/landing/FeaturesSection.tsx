@@ -49,7 +49,7 @@ const features = [
     ),
   },
   {
-    title: "CLI + MCP Tools",
+    title: "CLI + AI Agent Tools",
     description:
       "AI-native workflow. Let Claude create experiments, check results, and ship winners from your terminal.",
     side: "orange" as const,

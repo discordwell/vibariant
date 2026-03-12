@@ -30,7 +30,7 @@ const tiers = [
       "Unlimited experiments",
       "100K events / month",
       "Advanced stats + bandits",
-      "CLI + MCP tools",
+      "CLI + AI agent tools",
       "Priority support",
     ],
   },

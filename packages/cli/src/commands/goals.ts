@@ -3,13 +3,13 @@ import chalk from 'chalk';
 import { VibariantAPI } from '../lib/api.js';
 import { requireAuth } from '../lib/auth.js';
 import { getApiUrl, loadProject } from '../lib/credentials.js';
-import { printTable } from '../lib/format.js';
+import { printTable, jsonOk, EXIT } from '../lib/format.js';
 
 function resolveProjectId(opts: { projectId?: string }): string {
   const id = opts.projectId ?? loadProject()?.id;
   if (!id) {
-    console.error(chalk.red('No project selected. Use --project-id or run `vibariant init` first.'));
-    process.exit(1);
+    process.stderr.write(chalk.red('No project selected. Use --project-id or run `vibariant init` first.\n'));
+    process.exit(EXIT.ERROR);
   }
   return id;
 }
@@ -32,7 +32,7 @@ export function registerGoalsCommand(program: Command): void {
       const data = await api.listGoals(projectId);
 
       if (opts.json) {
-        console.log(JSON.stringify(data, null, 2));
+        jsonOk(data);
         return;
       }
 
@@ -66,7 +66,7 @@ export function registerGoalsCommand(program: Command): void {
       const goal = await api.confirmGoal(id);
 
       if (opts.json) {
-        console.log(JSON.stringify(goal, null, 2));
+        jsonOk(goal);
         return;
       }
 

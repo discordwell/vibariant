@@ -1,5 +1,17 @@
 # Session Summaries
 
+## 2026-03-11T16:40Z — CLI-first Claude integration (replace MCP)
+- Deleted `packages/mcp/` entirely — CLI is now sole AI integration surface
+- New `vibariant codegen` command: generates SDK integration code, `--json` returns file contents
+- New `vibariant experiments show <id-or-key>`: combined experiment details + stats
+- CLI hardening: consistent JSON envelope `{ok, data}` / `{ok, error}` on all commands, `--yes` flag to skip prompts, exit codes 0/1/2/3, stderr for human output in `--json` mode
+- Created Claude Code skill at `.claude/skills/vibariant/SKILL.md` + `workflows.md`
+- `vibariant init` now auto-installs skill + updates CLAUDE.md in user projects
+- Skill template bundled in `packages/cli/src/lib/skill-template.ts`
+- Removed `mcp-install.ts` command, cleaned all MCP references from ARCHITECTURE.md, landing page, memory
+- 49 tests passing (22 new), clean build
+- Code review fixes: if/else clarity after jsonError(), delete confirmation prompt, unused imports removed, detectEnvironment() deduplication
+
 ## 2026-03-11T—:—Z — Landing page implementation
 - Built full marketing landing page at `/` replacing redirect-only page
 - 7 new components in `dashboard/src/components/landing/`: BifurcationBackground, LandingNav, HeroSection, FeaturesSection, DemoSection, PricingSection, FooterSection

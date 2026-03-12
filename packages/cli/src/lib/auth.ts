@@ -2,6 +2,7 @@ import ora from 'ora';
 import chalk from 'chalk';
 import { VibariantAPI } from './api.js';
 import { loadCredentials, saveCredentials, type StoredCredentials } from './credentials.js';
+import { EXIT } from './format.js';
 
 const POLL_INTERVAL_MS = 2000;
 const POLL_TIMEOUT_MS = 300_000; // 5 minutes
@@ -89,7 +90,8 @@ export async function authenticate(
 export function requireAuth(): StoredCredentials {
   const creds = loadCredentials();
   if (!creds) {
-    throw new Error('Not authenticated. Run `vibariant auth login` first.');
+    process.stderr.write('Not authenticated. Run `vibariant auth login` first.\n');
+    process.exit(EXIT.NOT_AUTHENTICATED);
   }
   return creds;
 }

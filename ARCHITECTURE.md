@@ -43,13 +43,15 @@ Vibariant is an AB testing SaaS purpose-built for vibecoding. It provides meanin
 │  - ~8kb gzipped full bundle                  │
 └──────────────────────────────────────────────┘
 
-┌──────────────────────┐  ┌───────────────────────┐
-│   CLI (@vibariant/cli)│  │  MCP (@vibariant/mcp)│
-│  - One-click setup   │  │  - Claude Code tools  │
-│  - Experiment CRUD   │──│  - Same auth/config   │
-│  - Device-code auth  │  │  - Code generation    │
-│  npx @vibariant/cli  │  │  npx @vibariant/mcp   │
-└──────────────────────┘  └───────────────────────┘
+┌──────────────────────────────────────────────┐
+│        CLI (@vibariant/cli)                  │
+│  - One-click setup + code generation         │
+│  - Experiment CRUD + stats                   │
+│  - Device-code auth                          │
+│  - --json + --yes flags for AI agents        │
+│  - Claude Code skill (auto-installed)        │
+│  npx @vibariant/cli                          │
+└──────────────────────────────────────────────┘
 ```
 
 ## Tech Stack
@@ -62,7 +64,6 @@ Vibariant is an AB testing SaaS purpose-built for vibecoding. It provides meanin
 | Database | PostgreSQL 16 |
 | SDK | TypeScript, tsup (ESM + CJS) |
 | CLI | TypeScript, Commander.js, Inquirer |
-| MCP | TypeScript, @modelcontextprotocol/sdk |
 | Auth | GitHub OAuth + email magic links + device-code flow, JWT |
 | Deploy | Docker Compose on OVH VPS, Kamal proxy |
 
@@ -112,35 +113,33 @@ Handles: Docker backend startup, magic link auth, project creation, SDK installa
 - `vibariant goals list|confirm` — Goal management
 - `vibariant status` — Running experiments overview
 - `vibariant config get|set` — CLI configuration
-- `vibariant mcp` — Install MCP server config for Claude Code
+- `vibariant codegen` — Generate SDK integration code
 
-All commands support `--api-url` and `--json` flags for scripting.
+All commands support `--api-url`, `--json`, and `--yes` flags for scripting and AI agent use.
 
 ### CLI Auth Flow
 Device-code flow similar to GitHub CLI: CLI gets a device_code, user verifies via email magic link, CLI polls until authorized. In dev mode (default SECRET_KEY), auto-completes instantly without email.
 
-## MCP Server (`@vibariant/mcp`)
+## Claude Code Integration
 
-Model Context Protocol server for AI-assisted experiment management. Lives in `packages/mcp/`.
+The CLI is the sole integration surface for AI agents. Instead of an MCP server, Vibariant ships a **Claude Code skill** that documents the CLI for automated use.
 
-### Tools
-| Tool | Description |
-|------|-------------|
-| `vibariant_auth` | Check auth status |
-| `vibariant_list_projects` | List projects |
-| `vibariant_create_project` | Create project |
-| `vibariant_create_experiment` | Create + start experiment |
-| `vibariant_list_experiments` | List experiments |
-| `vibariant_get_results` | Get stats + recommendation |
-| `vibariant_update_experiment` | Update status/config |
-| `vibariant_generate_code` | Generate SDK integration code |
+### How It Works
+1. `vibariant init` installs `.claude/skills/vibariant/SKILL.md` in the user's project
+2. Claude Code auto-discovers the skill and makes it available as `/vibariant`
+3. The skill documents all CLI commands with `--json` examples
+4. Claude runs CLI commands via bash — zero config, no server process, token-efficient
+
+### CLI Design for AI Agents
+- `--json` flag on all commands outputs structured `{ ok, data }` / `{ ok, error }` envelopes
+- `--yes` flag skips interactive prompts so Claude never blocks on input
+- Exit codes: `0` success, `1` error, `2` not authenticated, `3` not found
+- Human-readable output goes to stderr when `--json` is active
 
 ### Setup
 ```bash
-npx @vibariant/cli mcp  # Writes to .claude/settings.json
+npx @vibariant/cli init  # Installs skill automatically
 ```
-
-Reads auth from `~/.vibariant/config.json` (shared with CLI).
 
 ## Deployment
 Docker Compose on OVH VPS (54.37.226.6) behind Kamal proxy with auto-SSL via Let's Encrypt.

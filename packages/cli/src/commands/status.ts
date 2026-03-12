@@ -3,7 +3,7 @@ import chalk from 'chalk';
 import { VibariantAPI } from '../lib/api.js';
 import { requireAuth } from '../lib/auth.js';
 import { getApiUrl, loadProject } from '../lib/credentials.js';
-import { printTable, statusBadge } from '../lib/format.js';
+import { printTable, jsonOk, EXIT } from '../lib/format.js';
 
 export function registerStatusCommand(program: Command): void {
   program
@@ -19,14 +19,23 @@ export function registerStatusCommand(program: Command): void {
 
       const projectId = opts.projectId ?? loadProject()?.id;
       if (!projectId) {
-        console.error(chalk.red('No project selected. Use --project-id or run `vibariant init` first.'));
-        process.exit(1);
+        process.stderr.write(chalk.red('No project selected. Use --project-id or run `vibariant init` first.\n'));
+        process.exit(EXIT.ERROR);
       }
 
       const experiments = await api.listExperiments(projectId);
 
       if (opts.json) {
-        console.log(JSON.stringify(experiments, null, 2));
+        const running = experiments.filter((e) => e.status === 'running');
+        const draft = experiments.filter((e) => e.status === 'draft');
+        const completed = experiments.filter((e) => e.status === 'completed');
+        jsonOk({
+          total: experiments.length,
+          running: running.length,
+          draft: draft.length,
+          completed: completed.length,
+          experiments,
+        });
         return;
       }
 

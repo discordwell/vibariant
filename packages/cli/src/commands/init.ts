@@ -10,6 +10,7 @@ import { detectEnvironment, getInstallCommand } from '../lib/detect.js';
 import { isApiReachable, isDockerAvailable, startBackend } from '../lib/docker.js';
 import { generateIntegrationCode, writeGeneratedFiles, printSetupInstructions } from '../lib/codegen.js';
 import { printSummary } from '../lib/format.js';
+import { installSkill } from '../lib/skill-template.js';
 
 export function registerInitCommand(program: Command): void {
   program
@@ -244,7 +245,12 @@ export function registerInitCommand(program: Command): void {
       }
 
       // ─────────────────────────────────────────────────
-      // Step 7: Summary
+      // Step 7: Claude Code Skill
+      // ─────────────────────────────────────────────────
+      installSkill(process.cwd());
+
+      // ─────────────────────────────────────────────────
+      // Step 8: Summary
       // ─────────────────────────────────────────────────
       const entries: Array<[string, string]> = [
         ['Backend', chalk.cyan(apiUrl)],

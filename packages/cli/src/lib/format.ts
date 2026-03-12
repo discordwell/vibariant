@@ -1,5 +1,25 @@
 import chalk from 'chalk';
 
+/** Exit codes for CLI commands */
+export const EXIT = {
+  SUCCESS: 0,
+  ERROR: 1,
+  NOT_AUTHENTICATED: 2,
+  NOT_FOUND: 3,
+} as const;
+
+/** Write structured JSON to stdout. Use for --json output. */
+export function jsonOk(data: unknown): void {
+  console.log(JSON.stringify({ ok: true, data }, null, 2));
+}
+
+/** Write structured JSON error to stdout, then exit. */
+export function jsonError(error: string, exitCode: number = EXIT.ERROR): never {
+  console.log(JSON.stringify({ ok: false, error }, null, 2));
+  process.exit(exitCode);
+}
+
+
 /**
  * Print a data table to stdout.
  */
