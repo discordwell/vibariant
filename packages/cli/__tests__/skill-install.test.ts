@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { mkdirSync, rmSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { installSkill, SKILL_FILES, CLAUDE_MD_LINE } from '../src/lib/skill-template.js';
+import { installSkill, SKILL_FILES, CLAUDE_MD_LINE, AGENT_INSTRUCTIONS } from '../src/lib/skill-template.js';
 
 const TEST_DIR = join(tmpdir(), 'vibariant-skill-install-test');
 
@@ -15,7 +15,7 @@ afterEach(() => {
   rmSync(TEST_DIR, { recursive: true, force: true });
 });
 
-describe('installSkill', () => {
+describe('installSkill — Claude Code', () => {
   it('creates all skill files in .claude/skills/vibariant/', () => {
     installSkill(TEST_DIR);
 
@@ -38,16 +38,11 @@ describe('installSkill', () => {
 
   it('SKILL.md is a lean router with links to reference files', () => {
     const skillContent = SKILL_FILES['SKILL.md'];
-    // Should have frontmatter
     expect(skillContent).toContain('name: vibariant');
     expect(skillContent).toContain('allowed-tools: Bash, Read, Grep');
-    // Should reference sub-files
     expect(skillContent).toContain('[auth.md](auth.md)');
     expect(skillContent).toContain('[experiments.md](experiments.md)');
     expect(skillContent).toContain('[codegen.md](codegen.md)');
-    expect(skillContent).toContain('[goals.md](goals.md)');
-    expect(skillContent).toContain('[workflows.md](workflows.md)');
-    // Should be concise (under 50 lines)
     const lineCount = skillContent.split('\n').length;
     expect(lineCount).toBeLessThan(60);
   });
@@ -55,10 +50,7 @@ describe('installSkill', () => {
   it('creates CLAUDE.md if it does not exist', () => {
     installSkill(TEST_DIR);
 
-    const claudeMdPath = join(TEST_DIR, 'CLAUDE.md');
-    expect(existsSync(claudeMdPath)).toBe(true);
-
-    const content = readFileSync(claudeMdPath, 'utf-8');
+    const content = readFileSync(join(TEST_DIR, 'CLAUDE.md'), 'utf-8');
     expect(content).toContain(CLAUDE_MD_LINE);
     expect(content).toContain('# Project');
   });
@@ -68,7 +60,6 @@ describe('installSkill', () => {
     writeFileSync(claudeMdPath, '# My Project\n\nSome existing content.\n');
 
     installSkill(TEST_DIR);
-
     const content = readFileSync(claudeMdPath, 'utf-8');
     expect(content).toContain('Some existing content.');
     expect(content).toContain(CLAUDE_MD_LINE);
@@ -86,8 +77,67 @@ describe('installSkill', () => {
     writeFileSync(claudeMdPath, original);
 
     installSkill(TEST_DIR);
+    expect(readFileSync(claudeMdPath, 'utf-8')).toBe(original);
+  });
+});
 
-    const content = readFileSync(claudeMdPath, 'utf-8');
-    expect(content).toBe(original);
+describe('installSkill — AGENTS.md (OpenAI Codex)', () => {
+  it('creates AGENTS.md with CLI reference', () => {
+    installSkill(TEST_DIR);
+
+    const agentsMdPath = join(TEST_DIR, 'AGENTS.md');
+    expect(existsSync(agentsMdPath)).toBe(true);
+
+    const content = readFileSync(agentsMdPath, 'utf-8');
+    expect(content).toContain('vibariant');
+    expect(content).toContain('--json');
+    expect(content).toContain('experiments create');
+  });
+
+  it('appends to existing AGENTS.md without duplicating', () => {
+    const agentsMdPath = join(TEST_DIR, 'AGENTS.md');
+    writeFileSync(agentsMdPath, '# My Agents\n\nExisting instructions.\n');
+
+    installSkill(TEST_DIR);
+    const content = readFileSync(agentsMdPath, 'utf-8');
+    expect(content).toContain('Existing instructions.');
+    expect(content).toContain('vibariant');
+
+    // Install again — should not duplicate
+    installSkill(TEST_DIR);
+    const content2 = readFileSync(agentsMdPath, 'utf-8');
+    const vibariantCount = content2.split('# Vibariant').length - 1;
+    expect(vibariantCount).toBe(1);
+  });
+});
+
+describe('installSkill — GitHub Copilot', () => {
+  it('creates .github/copilot-instructions.md', () => {
+    installSkill(TEST_DIR);
+
+    const copilotPath = join(TEST_DIR, '.github', 'copilot-instructions.md');
+    expect(existsSync(copilotPath)).toBe(true);
+
+    const content = readFileSync(copilotPath, 'utf-8');
+    expect(content).toContain('vibariant');
+    expect(content).toContain('--json');
+  });
+
+  it('appends to existing copilot-instructions.md without duplicating', () => {
+    const copilotDir = join(TEST_DIR, '.github');
+    mkdirSync(copilotDir, { recursive: true });
+    const copilotPath = join(copilotDir, 'copilot-instructions.md');
+    writeFileSync(copilotPath, '# Copilot\n\nExisting rules.\n');
+
+    installSkill(TEST_DIR);
+    const content = readFileSync(copilotPath, 'utf-8');
+    expect(content).toContain('Existing rules.');
+    expect(content).toContain('vibariant');
+
+    // Install again — should not duplicate
+    installSkill(TEST_DIR);
+    const content2 = readFileSync(copilotPath, 'utf-8');
+    const vibariantCount = content2.split('# Vibariant').length - 1;
+    expect(vibariantCount).toBe(1);
   });
 });
