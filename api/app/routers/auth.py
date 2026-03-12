@@ -170,7 +170,9 @@ async def send_magic_link(body: MagicLinkRequest, db: AsyncSession = Depends(get
     if _is_dev_mode():
         print(f"[DEV] Magic link token for {body.email}: {token}")
     else:
-        await send_magic_link_email(body.email, token)
+        sent = await send_magic_link_email(body.email, token)
+        if not sent:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Failed to send email. Please try again.")
 
     return MessageResponse(message="Magic link sent. Check your email.")
 
@@ -223,7 +225,8 @@ async def cli_login(body: CLILoginRequest) -> CLILoginResponse:
     _cleanup_expired_auths()
 
     device_code = secrets.token_urlsafe(32)
-    magic_token = create_magic_link_token(body.email)
+    # CLI token must live as long as the device-code TTL (2 hours)
+    magic_token = create_magic_link_token(body.email, expire_minutes=_CLI_AUTH_TTL_SECONDS // 60)
 
     _cli_pending_auths[device_code] = {
         "email": body.email,
@@ -236,7 +239,9 @@ async def cli_login(body: CLILoginRequest) -> CLILoginResponse:
         dev_token = magic_token
     else:
         dev_token = None
-        await send_cli_verify_email(body.email, device_code, magic_token)
+        sent = await send_cli_verify_email(body.email, device_code, magic_token)
+        if not sent:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Failed to send verification email. Please try again.")
 
     return CLILoginResponse(device_code=device_code, dev_token=dev_token)
 

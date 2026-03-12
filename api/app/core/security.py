@@ -21,8 +21,8 @@ def create_access_token(user_id: UUID, expires_delta: timedelta | None = None) -
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 
 
-def create_magic_link_token(email: str) -> str:
-    expire = datetime.now(UTC) + timedelta(minutes=settings.MAGIC_LINK_EXPIRE_MINUTES)
+def create_magic_link_token(email: str, expire_minutes: int | None = None) -> str:
+    expire = datetime.now(UTC) + timedelta(minutes=expire_minutes or settings.MAGIC_LINK_EXPIRE_MINUTES)
     payload = {"sub": email, "exp": expire, "type": "magic"}
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=ALGORITHM)
 

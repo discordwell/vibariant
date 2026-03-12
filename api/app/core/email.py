@@ -33,10 +33,10 @@ async def send_email(to: str, subject: str, html: str) -> bool:
                 },
                 timeout=10.0,
             )
-        if resp.status_code >= 400:
-            logger.error("Resend API error %d: %s", resp.status_code, resp.text)
-            return False
-        return True
+            if resp.status_code >= 400:
+                logger.error("Resend API error %d: %s", resp.status_code, resp.text)
+                return False
+            return True
     except Exception:
         logger.exception("Failed to send email to %s", to)
         return False
