@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import { useRouter } from "next/navigation";
+import Wordmark from "@/components/brand/Wordmark";
 import { api } from "@/lib/api";
 import { setToken, setUser } from "@/lib/auth";
 import type { User } from "@/lib/auth";
@@ -345,8 +346,7 @@ export default function LoginPage() {
           {/* Logo / Brand — bifurcated colors */}
           <div className="text-center mb-10">
             <h1 className="text-3xl font-bold tracking-tight">
-              <span className="text-blue-400">Vib</span>
-              <span className="text-orange-400">ariant</span>
+              <Wordmark />
             </h1>
             <p className="text-zinc-500 mt-2 text-sm">
               AB testing that understands your product

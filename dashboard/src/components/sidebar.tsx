@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logout, getUser } from "@/lib/auth";
+import Wordmark from "@/components/brand/Wordmark";
 import { useEffect, useState } from "react";
 import type { User } from "@/lib/auth";
 
@@ -73,10 +74,7 @@ export default function Sidebar() {
           <div className="w-8 h-8 bg-violet-600 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-sm">V</span>
           </div>
-          <span className="text-lg font-semibold tracking-tight">
-            <span className="text-blue-400">Vib</span>
-            <span className="text-orange-400">ariant</span>
-          </span>
+          <Wordmark className="text-lg font-semibold tracking-tight" />
         </Link>
       </div>
 

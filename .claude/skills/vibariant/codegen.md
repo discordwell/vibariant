@@ -53,8 +53,6 @@ When `--experiment-key` is provided, also generates `example-experiment.tsx`.
 **Next.js / React** — wrap your app:
 ```tsx
 import { VibariantWrapper } from '@/components/vibariant-provider';
-
-// In your root layout:
 <VibariantWrapper>{children}</VibariantWrapper>
 ```
 

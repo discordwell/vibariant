@@ -17,7 +17,7 @@ export function registerInitCommand(program: Command): void {
   program
     .command('init')
     .description('One-click setup: backend + auth + SDK + first experiment')
-    .option('--api-url <url>', 'API URL (default: http://localhost:8000)')
+    .option('--api-url <url>', 'API URL (default: https://api.vibariant.com)')
     .option('--email <email>', 'Email for authentication')
     .option('--project-name <name>', 'Project name')
     .option('--experiment <key>', 'Create an experiment with this key')
@@ -34,7 +34,7 @@ export function registerInitCommand(program: Command): void {
       console.log(chalk.dim('One-click AB testing for your app'));
       console.log('');
 
-      let apiUrl = opts.apiUrl ?? 'http://localhost:8000';
+      let apiUrl = opts.apiUrl ?? 'https://api.vibariant.com';
 
       // ─────────────────────────────────────────────────
       // Step 1: Backend

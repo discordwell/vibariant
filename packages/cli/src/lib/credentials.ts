@@ -83,7 +83,7 @@ export function saveProject(project: StoredProject): void {
 
 export function getApiUrl(): string {
   const config = readConfig();
-  return config.credentials?.apiUrl ?? config.defaultApiUrl ?? 'http://localhost:8000';
+  return config.credentials?.apiUrl ?? config.defaultApiUrl ?? 'https://api.vibariant.com';
 }
 
 export function setConfigValue(key: string, value: string): void {

@@ -23,6 +23,7 @@ const {
   saveProject,
   getConfigValue,
   setConfigValue,
+  getApiUrl,
 } = await import('../src/lib/credentials.js');
 
 beforeEach(() => {
@@ -111,5 +112,27 @@ describe('config values', () => {
       apiKey: 'vv_sk_abc',
     });
     expect(getConfigValue('project_token')).toBe('vv_proj_abc');
+  });
+});
+
+describe('getApiUrl', () => {
+  it('defaults to production API when no config exists', () => {
+    expect(getApiUrl()).toBe('https://api.vibariant.com');
+  });
+
+  it('uses defaultApiUrl from config when set', () => {
+    setConfigValue('api_url', 'http://localhost:8000');
+    expect(getApiUrl()).toBe('http://localhost:8000');
+  });
+
+  it('uses apiUrl from credentials when available', () => {
+    saveCredentials({
+      apiUrl: 'https://custom-api.example.com',
+      accessToken: 'token',
+      userId: 'user-1',
+      email: 'test@test.com',
+      expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+    });
+    expect(getApiUrl()).toBe('https://custom-api.example.com');
   });
 });

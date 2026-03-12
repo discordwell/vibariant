@@ -38,3 +38,4 @@ See HUMAN.md for human's architecture requests and decisions.
 - Variant assignment uses FNV-1a hash for deterministic client/server consistency
 - Stats engine uses conjugate Beta-Binomial (scipy), not PyMC
 - All SDK auto-tracking runs in requestIdleCallback to avoid blocking
+- For A/B testing, use the /vibariant skill or run vibariant commands directly

@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@tailwindcss/postcss": "^4.0.0",
+    "@vibariant/sdk": "file:../packages/sdk",
     "next": "^15.1.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

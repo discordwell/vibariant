@@ -5,7 +5,7 @@ import { loadCredentials, saveCredentials, type StoredCredentials } from './cred
 import { EXIT } from './format.js';
 
 const POLL_INTERVAL_MS = 2000;
-const POLL_TIMEOUT_MS = 300_000; // 5 minutes
+const POLL_TIMEOUT_MS = 7_200_000; // 2 hours
 
 /**
  * Run the device-code auth flow. Returns credentials on success.

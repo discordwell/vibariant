@@ -2,9 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useVariant, useTrack } from "@vibariant/sdk/react";
 
 export default function HeroSection() {
   const [visible, setVisible] = useState(false);
+  const { variant } = useVariant("hero-cta", ["control", "variant"]);
+  const track = useTrack();
+
+  const ctaText = variant === "variant" ? "Get Started Free" : "Start Free";
 
   useEffect(() => {
     // Trigger entrance animation after mount
@@ -138,8 +143,9 @@ export default function HeroSection() {
             data-bifurcation-target="hero-start-cta"
             data-bifurcation-side="blue"
             className="bg-blue-600 hover:bg-blue-500 text-white font-medium px-6 py-3 rounded-lg transition-all duration-150 text-sm"
+            onClick={() => track("custom", { action: "hero_cta_click" })}
           >
-            Start Free
+            {ctaText}
           </Link>
           <a
             href="#demo"

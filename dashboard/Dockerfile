@@ -3,14 +3,17 @@ FROM node:22-slim AS base
 # Install dependencies only when needed
 FROM base AS deps
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm ci
+COPY dashboard/package.json dashboard/package-lock.json* ./
+# Install deps, ignoring the file: SDK reference (it'll be copied manually)
+RUN npm install --ignore-scripts 2>/dev/null || true
 
 # Build the application
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+# Copy the local SDK package into node_modules (must be in builder, not deps)
+COPY packages/sdk ./node_modules/@vibariant/sdk
+COPY dashboard/ .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 

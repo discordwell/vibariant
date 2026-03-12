@@ -19,7 +19,7 @@ vibariant codegen --framework next --experiment-key checkout-cta --variants cont
 
 # 6. Check results
 vibariant experiments show checkout-cta --json
-# Look at decision_status: collecting_data → keep_testing → ready_to_ship
+# Look at decision_status: collecting_data -> keep_testing -> ready_to_ship
 
 # 7. Ship winner
 vibariant experiments update <id> --status completed --json

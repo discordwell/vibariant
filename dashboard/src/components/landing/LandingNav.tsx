@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { isAuthenticated } from "@/lib/auth";
+import Wordmark from "@/components/brand/Wordmark";
 
 export default function LandingNav() {
   const [authed, setAuthed] = useState(false);
@@ -28,8 +29,7 @@ export default function LandingNav() {
       <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="text-xl font-bold tracking-tight">
-          <span className="text-blue-400">Vib</span>
-          <span className="text-orange-400">ariant</span>
+          <Wordmark />
         </Link>
 
         {/* Nav links — hidden on mobile */}

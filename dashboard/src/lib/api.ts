@@ -105,6 +105,14 @@ class ApiClient {
     });
   }
 
+  async cliComplete(deviceCode: string, token: string) {
+    return this.request<MessageResponse>(`${API_PREFIX}/auth/cli-complete`, {
+      method: "POST",
+      body: { device_code: deviceCode, token },
+      skipAuth: true,
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Project endpoints (JWT auth)
   // ---------------------------------------------------------------------------

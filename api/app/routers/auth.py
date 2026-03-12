@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.email import send_cli_verify_email, send_magic_link_email
 from app.core.security import create_access_token, create_magic_link_token, get_current_user, verify_token
 from app.models.project import Project
 from app.models.user import User
@@ -21,7 +22,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # NOTE: This is process-local — won't work with multiple uvicorn workers or load balancers.
 # For multi-worker production, swap to Redis or DB-backed storage.
 _cli_pending_auths: dict[str, dict] = {}
-_CLI_AUTH_TTL_SECONDS = 300  # 5 minutes
+_CLI_AUTH_TTL_SECONDS = 7200  # 2 hours
 
 
 def _cleanup_expired_auths() -> None:
@@ -163,11 +164,14 @@ async def github_auth(body: GitHubAuthRequest, db: AsyncSession = Depends(get_db
 
 @router.post("/magic-link", response_model=MessageResponse)
 async def send_magic_link(body: MagicLinkRequest, db: AsyncSession = Depends(get_db)) -> MessageResponse:
-    """Generate a magic link token for passwordless login. In production, send this via email."""
+    """Generate a magic link token for passwordless login and send via email."""
     token = create_magic_link_token(body.email)
-    # TODO: Send email with magic link containing the token
-    # For now, log it (development convenience)
-    print(f"[DEV] Magic link token for {body.email}: {token}")
+
+    if _is_dev_mode():
+        print(f"[DEV] Magic link token for {body.email}: {token}")
+    else:
+        await send_magic_link_email(body.email, token)
+
     return MessageResponse(message="Magic link sent. Check your email.")
 
 
@@ -214,6 +218,7 @@ async def cli_login(body: CLILoginRequest) -> CLILoginResponse:
     """Start a CLI auth session. Returns a device_code the CLI polls.
 
     In dev mode (default SECRET_KEY), also returns a dev_token for instant auth.
+    In production, sends an email with a verification link.
     """
     _cleanup_expired_auths()
 
@@ -227,7 +232,11 @@ async def cli_login(body: CLILoginRequest) -> CLILoginResponse:
         "status": "pending",
     }
 
-    dev_token = magic_token if _is_dev_mode() else None
+    if _is_dev_mode():
+        dev_token = magic_token
+    else:
+        dev_token = None
+        await send_cli_verify_email(body.email, device_code, magic_token)
 
     return CLILoginResponse(device_code=device_code, dev_token=dev_token)
 

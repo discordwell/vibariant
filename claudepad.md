@@ -1,5 +1,23 @@
 # Session Summaries
 
+## 2026-03-12T12:30Z — Dogfood Vibariant + CLI auth + email service + deploy fixes
+- Dogfooded Vibariant on vibariant.com: integrated SDK into landing page for hero CTA AB test
+- Created `hero-cta` experiment (control="Start Free", variant="Get Started Free") with click tracking via `useTrack()`
+- Added `VibariantWrapper` component wrapping landing page with `VibariantProvider`
+- Implemented Resend email service (`api/app/core/email.py`): CLI verify emails + magic link emails
+- Added CLI verify page (`/auth/cli-verify`): reads device_code+token from URL, calls cli-complete API
+- Fixed CLI default API URL: changed from localhost:8000 to https://api.vibariant.com
+- Fixed CLI auth poll timeout: 5min → 2 hours (per user request)
+- Added `cliComplete()` to dashboard API client
+- Rewrote `dashboard/Dockerfile` for monorepo: SDK copied into builder stage node_modules (deps stage COPY was silently lost by multi-stage builds)
+- Added `packages/sdk/react/package.json` proxy directory for webpack subpath export compatibility
+- Created `Wordmark` brand component, extracted from inline spans across nav/footer/sidebar/login
+- Added `.dockerignore`, `docker-compose.prod.yml` env vars for RESEND_API_KEY + FROM_EMAIL
+- Config: added RESEND_API_KEY, FROM_EMAIL, DASHBOARD_URL to API settings
+- 3 new CLI tests for `getApiUrl()` defaults
+- End-to-end CLI auth flow working in production (email → browser verify → poll → authenticated)
+- Deployed and health-checked on ovh2
+
 ## 2026-03-12T02:40Z — Upgrade MCP server: 8 → 13 tools with CLI parity
 - Migrated all tools from deprecated `server.tool()` to `server.registerTool()` with MCP annotations (readOnlyHint, destructiveHint, idempotentHint, openWorldHint)
 - Added 5 new tools: `vibariant_delete_experiment`, `vibariant_experiment_show`, `vibariant_goals_list`, `vibariant_goals_confirm`, `vibariant_status`

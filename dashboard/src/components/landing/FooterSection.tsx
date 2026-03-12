@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Wordmark from "@/components/brand/Wordmark";
 
 export default function FooterSection() {
   return (
@@ -8,8 +9,7 @@ export default function FooterSection() {
           {/* Logo + tagline */}
           <div className="text-center md:text-left">
             <Link href="/" className="text-lg font-bold tracking-tight">
-              <span className="text-blue-400">Vib</span>
-              <span className="text-orange-400">ariant</span>
+              <Wordmark />
             </Link>
             <p className="text-zinc-600 text-sm mt-1">
               Made for vibecoders. Powered by math.

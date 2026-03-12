@@ -14,6 +14,11 @@ class Settings(BaseSettings):
     MAGIC_LINK_EXPIRE_MINUTES: int = 15
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
+    # Email (Resend)
+    RESEND_API_KEY: str = ""
+    FROM_EMAIL: str = "Vibariant <noreply@vibariant.com>"
+    DASHBOARD_URL: str = "https://vibariant.com"
+
     # CORS
     CORS_ORIGINS: list[str] = ["http://localhost:3000"]
 
