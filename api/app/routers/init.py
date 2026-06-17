@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,8 +19,11 @@ router = APIRouter(tags=["sdk"])
 # ---------------------------------------------------------------------------
 
 class InitRequest(BaseModel):
-    visitor_id: str
-    session_id: str | None = None
+    # visitor_id/session_id persist to String(255) columns and feed the
+    # deterministic assignment hash; bound them so oversized values yield a
+    # clean 422 rather than a database error on this public endpoint.
+    visitor_id: str = Field(min_length=1, max_length=255)
+    session_id: str | None = Field(default=None, min_length=1, max_length=255)
     attributes: dict | None = None
 
 

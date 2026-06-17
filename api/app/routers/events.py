@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -11,22 +11,33 @@ from app.models.event import Event
 
 router = APIRouter(tags=["events"])
 
+# Maximum events accepted in a single ingest request. The SDK flushes in
+# batches of ~10 (DEFAULT_BATCHING.maxSize) and caps offline retry buffers at
+# 100 events, so a legitimate batch never approaches this. The bound exists
+# to stop a single malicious/buggy request from materializing an unbounded
+# list of ORM rows in memory on this public, project-token-only endpoint.
+MAX_EVENTS_PER_BATCH = 1000
+
+# String fields map to String(255) columns; oversized values would otherwise
+# raise a database-level error (HTTP 500) instead of a clean 422.
+_MAX_FIELD_LEN = 255
+
 
 # ---------------------------------------------------------------------------
 # Schemas
 # ---------------------------------------------------------------------------
 
 class EventItem(BaseModel):
-    visitor_id: str
-    session_id: str
+    visitor_id: str = Field(min_length=1, max_length=_MAX_FIELD_LEN)
+    session_id: str = Field(min_length=1, max_length=_MAX_FIELD_LEN)
     experiment_assignments: dict | None = None
-    event_type: str
+    event_type: str = Field(min_length=1, max_length=_MAX_FIELD_LEN)
     payload: dict | None = None
     timestamp: datetime
 
 
 class BatchEventsRequest(BaseModel):
-    events: list[EventItem]
+    events: list[EventItem] = Field(max_length=MAX_EVENTS_PER_BATCH)
     # Fallback auth for sendBeacon (which cannot set custom headers)
     projectToken: str | None = None
 

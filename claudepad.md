@@ -1,5 +1,15 @@
 # Session Summaries
 
+## 2026-06-17T21:54Z — Harden public SDK ingestion endpoints (events/init/goals)
+- **Theme**: extends the prior commit's input-hardening from the authenticated experiment-config path to the three PUBLIC (project-token) SDK-facing endpoints, which had zero field validation.
+- **Vulnerability class fixed**: oversized scalar strings overflowed their `String(N)` columns and surfaced as opaque DB-level **500s**; unbounded `/events` batches were a memory/DoS vector on a public endpoint. Both now return clean **422**s.
+- **`/events`** (api/app/routers/events.py): `EventItem.visitor_id/session_id/event_type` bounded `1..255` (matches `String(255)` cols); `BatchEventsRequest.events` capped at `MAX_EVENTS_PER_BATCH=1000` (module constant w/ rationale — SDK flushes ~10, offline retry caps at 100, so 10x headroom). Empty batch still allowed (harmless no-op).
+- **`/init`** (api/app/routers/init.py): `visitor_id` `1..255`; `session_id` optional, `1..255` when present. Note: length bounds only — no stripping/normalization, so client/server FNV-1a assignment parity is untouched.
+- **`POST /goals`** (api/app/routers/goals.py): `GoalCreate.type` `1..100` (matches `String(100)`), `label` `1..255`; `GoalUpdate.label` optional `1..255`.
+- **Scope discipline**: JSONB fields (`payload`, `experiment_assignments`, `attributes`, `trigger`) left intentionally unbounded (rich SDK payloads must pass) — locked in by an explicit test.
+- **Tests**: new api/tests/test_ingestion_schema.py (36 pure-Pydantic cases, no DB — same fast tier as test_experiment_schema.py). Non-integration suite 193→229 passed. App + OpenAPI build verified; constraints now self-document in the public spec.
+- **Reviewed** via subagent against the DB models AND the initial migration: all bounds match columns exactly, no off-by-one, no legitimate SDK input rejected (SDK uses 36-char UUIDs, event types ≤14 chars, goal type/label ≤~72 chars). No blockers.
+
 ## 2026-06-17T11:56Z — Harden variant assignment + experiment input validation
 - **Bug fixed**: `assign_variant` (api/app/services/assignment.py) raised `ZeroDivisionError` on empty `variant_keys` (`bucket % 0`) — a 500-error vector on the PUBLIC `POST /init` endpoint for the whole project. Now returns `None` (no assignment) defensively, so legacy/misconfigured rows can't crash ingestion.
 - **Input validation**: added Pydantic v2 `Field`/`field_validator` to `ExperimentCreate`/`ExperimentUpdate` (api/app/routers/experiments.py): `variant_keys` non-empty (min_length=1) + unique + non-blank (stripped); `traffic_percentage`/`loss_threshold`/`rope_width` bounded [0,1]; `expected_conversion_rate` in (0,1); `prior_confidence` > 0; `key`/`name` length 1..255 (matches DB String(255)). Malformed experiments now 422 instead of silently corrupting stats or 500-ing later.

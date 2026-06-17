@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,14 +19,17 @@ router = APIRouter(tags=["goals"])
 # ---------------------------------------------------------------------------
 
 class GoalCreate(BaseModel):
-    type: str
-    label: str
+    # type/label persist to String(100)/String(255) columns; this endpoint is
+    # public (project token), so bound lengths to turn oversized SDK payloads
+    # into a clean 422 instead of a database error.
+    type: str = Field(min_length=1, max_length=100)
+    label: str = Field(min_length=1, max_length=255)
     trigger: dict | None = None
     confidence: float | None = None
 
 
 class GoalUpdate(BaseModel):
-    label: str | None = None
+    label: str | None = Field(default=None, min_length=1, max_length=255)
     confirmed: bool | None = None
     trigger: dict | None = None
 
