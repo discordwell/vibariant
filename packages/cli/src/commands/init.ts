@@ -12,6 +12,7 @@ import { generateIntegrationCode, writeGeneratedFiles, printSetupInstructions } 
 import { printSummary } from '../lib/format.js';
 import { installSkill } from '../lib/skill-template.js';
 import { installMcpConfig } from './mcp-install.js';
+import { parseVariantKeys } from '../lib/variants.js';
 
 export function registerInitCommand(program: Command): void {
   program
@@ -201,7 +202,7 @@ export function registerInitCommand(program: Command): void {
             .split('-')
             .map((w: string) => w[0].toUpperCase() + w.slice(1))
             .join(' ');
-          const variants = opts.variants?.split(',').map((v: string) => v.trim()) ?? ['control', 'variant'];
+          const variants = parseVariantKeys(opts.variants);
 
           try {
             const exp = await api.createExperiment({

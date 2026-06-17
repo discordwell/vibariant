@@ -1,5 +1,14 @@
 # Session Summaries
 
+## 2026-06-17T11:56Z — Harden variant assignment + experiment input validation
+- **Bug fixed**: `assign_variant` (api/app/services/assignment.py) raised `ZeroDivisionError` on empty `variant_keys` (`bucket % 0`) — a 500-error vector on the PUBLIC `POST /init` endpoint for the whole project. Now returns `None` (no assignment) defensively, so legacy/misconfigured rows can't crash ingestion.
+- **Input validation**: added Pydantic v2 `Field`/`field_validator` to `ExperimentCreate`/`ExperimentUpdate` (api/app/routers/experiments.py): `variant_keys` non-empty (min_length=1) + unique + non-blank (stripped); `traffic_percentage`/`loss_threshold`/`rope_width` bounded [0,1]; `expected_conversion_rate` in (0,1); `prior_confidence` > 0; `key`/`name` length 1..255 (matches DB String(255)). Malformed experiments now 422 instead of silently corrupting stats or 500-ing later.
+- **Conservative choice**: used `min_length=1` (not 2) so a single-variant rollout — currently working behavior — is preserved; only the empty list (the real crash) is rejected.
+- **SDK docstring fix** (packages/sdk/src/core/assignment.ts): old comment described contiguous range-partitioning but the code does `bucket % len` (interleaved). Rewrote with correct worked examples + note that it MUST match the Python backend byte-for-byte. No behavior change.
+- **CLI parity** (packages/cli): extracted `parseVariantKeys()` helper (lib/variants.ts) used by `experiments create` + `init`; trims/drops blanks like the dashboard (tolerates "a,,b"/trailing commas), defaults to control/variant on blank input. Deliberately does NOT dedup (lets API flag genuine mistakes).
+- **Tests**: new api/tests/test_assignment.py (FNV-1a + assign_variant, locks cross-language hash parity with the SDK's exact values, covers empty-variant guard + traffic gating) and api/tests/test_experiment_schema.py (Pydantic validation, no DB). Moved the pure-logic FNV tests out of test_e2e_flow.py (which needs a live server). New CLI variants.test.ts.
+- **Verification**: API non-integration 139→193 passed; SDK 59; CLI 65→74; MCP 29. Integration tests (test_e2e_flow/test_cli_auth) still need a live server on :8001 — unchanged, not run here. Code-reviewed via subagent: no blockers.
+
 ## 2026-03-12T12:30Z — Dogfood Vibariant + CLI auth + email service + deploy fixes
 - Dogfooded Vibariant on vibariant.com: integrated SDK into landing page for hero CTA AB test
 - Created `hero-cta` experiment (control="Start Free", variant="Get Started Free") with click tracking via `useTrack()`

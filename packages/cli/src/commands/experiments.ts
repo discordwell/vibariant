@@ -4,6 +4,7 @@ import { VibariantAPI } from '../lib/api.js';
 import { requireAuth } from '../lib/auth.js';
 import { getApiUrl, loadProject } from '../lib/credentials.js';
 import { printTable, statusBadge, jsonOk, jsonError, EXIT } from '../lib/format.js';
+import { parseVariantKeys } from '../lib/variants.js';
 
 function resolveProjectId(opts: { projectId?: string }): string {
   const id = opts.projectId ?? loadProject()?.id;
@@ -81,7 +82,7 @@ export function registerExperimentsCommand(program: Command): void {
 
       const key = opts.key ?? (await promptForKey());
       const name = opts.name ?? key;
-      const variants = opts.variants?.split(',').map((v: string) => v.trim()) ?? ['control', 'variant'];
+      const variants = parseVariantKeys(opts.variants);
 
       const exp = await api.createExperiment({
         project_id: projectId,

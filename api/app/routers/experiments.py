@@ -2,7 +2,7 @@ import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,29 +21,58 @@ router = APIRouter(tags=["experiments"])
 # Schemas
 # ---------------------------------------------------------------------------
 
+def _validate_variant_keys(value: list[str]) -> list[str]:
+    """Reject blank or duplicate variant keys.
+
+    Duplicate keys would silently split traffic across "different" variants
+    that are actually the same, corrupting downstream stats; blank keys break
+    deterministic assignment matching. A non-empty list (>= 1) is enforced by
+    the ``min_length`` Field constraint — empty lists previously crashed the
+    public ``/init`` endpoint with a ZeroDivisionError.
+    """
+    cleaned = [v.strip() for v in value]
+    if any(not v for v in cleaned):
+        raise ValueError("variant_keys must not contain blank values")
+    if len(set(cleaned)) != len(cleaned):
+        raise ValueError("variant_keys must be unique")
+    return cleaned
+
+
 class ExperimentCreate(BaseModel):
     project_id: UUID
-    key: str
-    name: str
-    variant_keys: list[str] = ["control", "variant"]
-    traffic_percentage: float = 1.0
+    key: str = Field(min_length=1, max_length=255)
+    name: str = Field(min_length=1, max_length=255)
+    variant_keys: list[str] = Field(default=["control", "variant"], min_length=1)
+    traffic_percentage: float = Field(default=1.0, ge=0.0, le=1.0)
     # v2 stats config
-    loss_threshold: float = 0.005
-    rope_width: float = 0.005
-    expected_conversion_rate: float | None = None
-    prior_confidence: float | None = None
+    loss_threshold: float = Field(default=0.005, ge=0.0, le=1.0)
+    rope_width: float = Field(default=0.005, ge=0.0, le=1.0)
+    expected_conversion_rate: float | None = Field(default=None, gt=0.0, lt=1.0)
+    prior_confidence: float | None = Field(default=None, gt=0.0)
+
+    @field_validator("variant_keys")
+    @classmethod
+    def _check_variant_keys(cls, value: list[str]) -> list[str]:
+        return _validate_variant_keys(value)
 
 
 class ExperimentUpdate(BaseModel):
-    name: str | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=255)
     status: ExperimentStatus | None = None
-    variant_keys: list[str] | None = None
-    traffic_percentage: float | None = None
+    variant_keys: list[str] | None = Field(default=None, min_length=1)
+    traffic_percentage: float | None = Field(default=None, ge=0.0, le=1.0)
     # v2 stats config
-    loss_threshold: float | None = None
-    rope_width: float | None = None
-    expected_conversion_rate: float | None = None
-    prior_confidence: float | None = None
+    loss_threshold: float | None = Field(default=None, ge=0.0, le=1.0)
+    rope_width: float | None = Field(default=None, ge=0.0, le=1.0)
+    expected_conversion_rate: float | None = Field(default=None, gt=0.0, lt=1.0)
+    prior_confidence: float | None = Field(default=None, gt=0.0)
+
+    @field_validator("variant_keys")
+    @classmethod
+    def _check_variant_keys(cls, value: list[str] | None) -> list[str] | None:
+        if value is None:
+            return None
+        return _validate_variant_keys(value)
 
 
 class ExperimentOut(BaseModel):

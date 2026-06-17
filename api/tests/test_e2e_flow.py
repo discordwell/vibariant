@@ -298,33 +298,5 @@ class TestGoals:
         assert resp.json()["confirmed"] is True
 
 
-class TestFNV1aConsistency:
-    """Verify FNV-1a hash produces deterministic, correct results."""
-
-    def test_known_values(self):
-        from app.services.assignment import assign_variant, fnv1a
-
-        assert fnv1a("test_visitor:hero-cta") == 2186455057
-        result = assign_variant("test_visitor", "hero-cta", ["control", "bold", "minimal"])
-        assert result == "control"
-
-    def test_unicode_consistency(self):
-        from app.services.assignment import fnv1a
-
-        # Unicode should produce consistent results
-        assert fnv1a("café:experiment") == 4080878006
-
-    def test_traffic_gating(self):
-        from app.services.assignment import assign_variant
-
-        result = assign_variant("any_visitor", "any_exp", ["a", "b"], traffic_percentage=0.0)
-        assert result is None
-
-    def test_deterministic(self):
-        from app.services.assignment import assign_variant
-
-        results = set()
-        for _ in range(100):
-            r = assign_variant("visitor_123", "exp_abc", ["a", "b", "c"])
-            results.add(r)
-        assert len(results) == 1
+# NOTE: Pure-logic FNV-1a / assign_variant tests live in test_assignment.py
+# (they need no server). Keep this file for live integration flows only.

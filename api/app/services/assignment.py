@@ -31,10 +31,20 @@ def assign_variant(
     to produce a bucket 0-999. If bucket >= traffic_percentage * 1000,
     the visitor is excluded (returns None).
 
-    Otherwise, the bucket is mapped evenly across variant_keys.
+    Otherwise, the bucket is mapped evenly across variant_keys via
+    ``bucket % len(variant_keys)``.
+
+    Returns ``None`` (no assignment) when ``variant_keys`` is empty, so a
+    misconfigured experiment never crashes the public ``/init`` endpoint.
 
     This logic MUST match the TypeScript SDK implementation.
     """
+    # Defensive: an experiment with no variants yields no assignment rather
+    # than raising ZeroDivisionError on the modulo below. Schema validation
+    # prevents creating such experiments, but existing/legacy rows may exist.
+    if not variant_keys:
+        return None
+
     bucket = fnv1a(f"{visitor_id}:{experiment_key}") % 1000
 
     # Traffic gating: exclude visitors outside the traffic percentage

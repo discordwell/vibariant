@@ -25,19 +25,22 @@ export function fnv1a(str: string): number {
 /**
  * Deterministic variant assignment using FNV-1a hashing.
  *
- * Algorithm:
+ * Algorithm (equal-weight case):
  *   1. Hash `${visitorId}:${experimentKey}` with FNV-1a
  *   2. Bucket = hash % 1000 (gives 0-999)
- *   3. Divide buckets equally among variant keys
+ *   3. index = bucket % variantKeys.length  ← interleaved, NOT range-based
  *
- * With 2 variants and bucket 0-999:
- *   - Buckets 0-499  -> variant[0]
- *   - Buckets 500-999 -> variant[1]
+ * The modulo (not contiguous-range) mapping is deliberate and MUST match the
+ * Python backend (`api/app/services/assignment.py`) byte-for-byte so a visitor
+ * gets the same variant whether assignment happens client- or server-side.
  *
- * With 3 variants:
- *   - Buckets 0-333   -> variant[0]
- *   - Buckets 334-666  -> variant[1]
- *   - Buckets 667-999  -> variant[2]
+ * Worked examples (bucket = 758):
+ *   - 2 variants: 758 % 2 = 0 -> variantKeys[0]
+ *   - 3 variants: 758 % 3 = 2 -> variantKeys[2]
+ *   - 5 variants: 758 % 5 = 3 -> variantKeys[3]
+ *
+ * When explicit `weights` are supplied (client-only feature), assignment
+ * instead uses contiguous cumulative bucket ranges.
  */
 export function assignVariantLocally(
   visitorId: string,
