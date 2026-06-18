@@ -201,7 +201,9 @@ class TestEventIngestion:
                         "session_id": "vvs_test_session_001",
                         "experiment_assignments": {"hero-cta": "bold"},
                         "event_type": "goal_completed",
-                        "payload": {"goal_id": "signup"},
+                        # SDK emits goalType (camelCase); the stats engine counts
+                        # conversions by payload["goalType"] for confirmed goals.
+                        "payload": {"goalType": "signup"},
                         "timestamp": "2026-02-26T12:00:10Z",
                     },
                 ]

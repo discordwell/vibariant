@@ -13,7 +13,7 @@ from typing import Any
 from uuid import UUID
 
 import numpy as np
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.event import Event
@@ -86,6 +86,10 @@ class StatsEngine:
         # ----------------------------------------------------------
         # 2 & 3. Query visitors and conversions per variant
         # ----------------------------------------------------------
+        # Confirmed goal types are project-scoped, so resolve them once here
+        # instead of re-querying inside the per-variant loop below.
+        confirmed_goal_types = await self._get_confirmed_goal_types(project_id)
+
         variant_data: list[dict[str, Any]] = []
         models: list[BetaBinomial] = []
         conversions_per_variant: dict[str, int] = {}
@@ -95,8 +99,14 @@ class StatsEngine:
                 project_id, experiment_key, variant_key
             )
             conversions = await self._count_conversions(
-                project_id, experiment_key, variant_key
+                project_id, experiment_key, variant_key, confirmed_goal_types
             )
+            # The Beta-Binomial model treats each assigned visitor as a single
+            # Bernoulli trial, so conversions must never exceed visitors. The
+            # distinct-visitor count in _count_conversions already guarantees
+            # this; clamp defensively so a public results request can never 500
+            # on an invalid (successes > trials) posterior update.
+            conversions = min(conversions, visitors)
             conversions_per_variant[variant_key] = conversions
 
             # 4. Build BetaBinomial model with resolved prior
@@ -319,53 +329,60 @@ class StatsEngine:
         )
         return result.scalar() or 0
 
-    async def _count_conversions(
-        self, project_id: UUID, experiment_key: str, variant_key: str
-    ) -> int:
-        """Count conversion events for a variant.
+    async def _get_confirmed_goal_types(self, project_id: UUID) -> set[str]:
+        """Return the goal types the user has confirmed for this project.
 
-        Explicit ``conversion`` events are always counted.  ``goal_completed``
-        events are only counted when the goal type has been confirmed by the
-        user in the dashboard, to avoid inflating stats with false-positive
-        auto-detected goals.
+        Resolved once per analysis (the set is project-scoped) rather than
+        once per variant, avoiding a redundant query inside the variant loop.
         """
-        # Count explicit conversion events (always trusted)
-        explicit_result = await self.db.execute(
-            select(func.count())
-            .select_from(Event)
-            .where(
-                Event.project_id == project_id,
-                Event.experiment_assignments[experiment_key].astext == variant_key,
-                Event.event_type == "conversion",
-            )
-        )
-        explicit_count = explicit_result.scalar() or 0
-
-        # Get confirmed goal types for this project
-        confirmed_types_result = await self.db.execute(
+        result = await self.db.execute(
             select(Goal.type).where(
                 Goal.project_id == project_id,
                 Goal.confirmed.is_(True),
             )
         )
-        confirmed_types = {row[0] for row in confirmed_types_result.all()}
+        return {row[0] for row in result.all()}
 
-        # Count goal_completed events only for confirmed goal types
-        goal_count = 0
+    async def _count_conversions(
+        self,
+        project_id: UUID,
+        experiment_key: str,
+        variant_key: str,
+        confirmed_types: set[str],
+    ) -> int:
+        """Count distinct visitors who converted on a variant.
+
+        A visitor counts as converted when they fired at least one explicit
+        ``conversion`` event, or a ``goal_completed`` event whose goal type the
+        user has confirmed in the dashboard. Unconfirmed auto-detected goals are
+        excluded to avoid inflating stats with false positives.
+
+        Distinct *visitors* are counted — not raw events — because the
+        Beta-Binomial model treats each assigned visitor as a single Bernoulli
+        trial (converted or not). Counting events would double-count repeat
+        converters (e.g. a CTA clicked twice fires two ``goal_completed``
+        events), distorting the conversion rate and potentially pushing
+        conversions above the visitor count — an invalid Binomial observation
+        that crashes the posterior update.
+        """
+        conversion_filter = Event.event_type == "conversion"
         if confirmed_types:
-            goal_result = await self.db.execute(
-                select(func.count())
-                .select_from(Event)
-                .where(
-                    Event.project_id == project_id,
-                    Event.experiment_assignments[experiment_key].astext == variant_key,
+            conversion_filter = or_(
+                conversion_filter,
+                and_(
                     Event.event_type == "goal_completed",
                     Event.payload["goalType"].astext.in_(confirmed_types),
-                )
+                ),
             )
-            goal_count = goal_result.scalar() or 0
 
-        return explicit_count + goal_count
+        result = await self.db.execute(
+            select(func.count(func.distinct(Event.visitor_id))).where(
+                Event.project_id == project_id,
+                Event.experiment_assignments[experiment_key].astext == variant_key,
+                conversion_filter,
+            )
+        )
+        return result.scalar() or 0
 
     async def _get_engagement_events(
         self, project_id: UUID, experiment_key: str, variant_key: str
