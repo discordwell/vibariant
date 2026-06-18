@@ -381,6 +381,77 @@ class TestTopTwoThompsonSampler:
         alloc = sampler.get_allocation(n_samples=1_000)
         assert alloc == [pytest.approx(1.0, abs=0.01)]
 
+    @staticmethod
+    def _reference_loop_allocation(models, n_samples, seed, beta, min_allocation):
+        """Independent, un-vectorised reference Top-Two allocation.
+
+        Pins the *algorithm* (draw best, draw challenger excluding best,
+        flip a beta-weighted coin, enforce a floor) separately from the
+        production *implementation*. ``get_allocation`` is vectorised for
+        speed; this loop must produce a statistically equivalent estimate.
+        """
+        rng = np.random.default_rng(seed)
+        n = len(models)
+        counts = np.zeros(n)
+        for _ in range(n_samples):
+            d1 = np.array([float(rng.beta(m.alpha, m.beta)) for m in models])
+            arm1 = int(np.argmax(d1))
+            if n == 1:
+                counts[arm1] += 1
+                continue
+            d2 = np.array([float(rng.beta(m.alpha, m.beta)) for m in models])
+            d2[arm1] = -np.inf
+            arm2 = int(np.argmax(d2))
+            counts[arm1 if rng.random() < beta else arm2] += 1
+        alloc = counts / n_samples
+        if n > 1 and min_allocation > 0:
+            below = alloc < min_allocation
+            if np.any(below) and not np.all(below):
+                deficit = np.sum(np.maximum(min_allocation - alloc, 0))
+                above = ~below
+                above_total = np.sum(alloc[above])
+                if above_total > deficit:
+                    alloc[below] = min_allocation
+                    alloc[above] *= (above_total - deficit) / above_total
+        total = np.sum(alloc)
+        if total > 0:
+            alloc = alloc / total
+        return alloc.tolist()
+
+    @pytest.mark.parametrize(
+        "models, min_alloc",
+        [
+            ([BetaBinomial().update(2, 100), BetaBinomial().update(15, 100)], 0.10),
+            ([BetaBinomial().update(5, 100), BetaBinomial().update(5, 100)], 0.0),
+            (
+                [
+                    BetaBinomial().update(2, 100),
+                    BetaBinomial().update(10, 100),
+                    BetaBinomial().update(3, 100),
+                ],
+                0.10,
+            ),
+            ([BetaBinomial().update(1, 200), BetaBinomial().update(30, 200)], 0.10),
+        ],
+    )
+    def test_vectorised_matches_reference_loop(self, models, min_alloc):
+        """The vectorised allocation must match an independent loop within MC noise.
+
+        Guards against a future re-implementation silently changing the
+        distribution: both are Monte Carlo estimates of the same quantity, so
+        they agree up to sampling error (well under the 0.02 tolerance at
+        50k samples), even though their RNG draw order differs.
+        """
+        sampler = TopTwoThompsonSampler(models, min_allocation=min_alloc)
+        fast = sampler.get_allocation(n_samples=50_000, seed=7)
+        reference = self._reference_loop_allocation(
+            models, n_samples=50_000, seed=7, beta=sampler.beta, min_allocation=min_alloc
+        )
+        assert len(fast) == len(reference)
+        assert sum(fast) == pytest.approx(1.0, abs=1e-6)
+        for got, want in zip(fast, reference):
+            assert got == pytest.approx(want, abs=0.02)
+
 
 # ======================================================================
 # Adaptive Priors Tests
